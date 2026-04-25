@@ -32,8 +32,16 @@ HabitTrack is a web-based habit tracker built with Node.js, Express, and SQLite.
 git clone 
 ```
 
-2. Install dependencies and start the app:
+2. Install dependencies, initialize the database, and start the app:
 
 ```bash
 npm install
+npm run db:init
 npm start
+```
+
+The `npm run db:init` command creates the SQLite database file and initializes the required tables. The app also performs this initialization automatically on startup.
+
+## Database Notes
+
+This project uses SQLite as its application database, so a database initialization script is included via `npm run db:init`. Firebase is used only for authentication and external account management, so it does not require a local database creation script in the same way.
