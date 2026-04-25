@@ -2,6 +2,7 @@
   "name": "habittracks-v2",
   "private": true,
   "scripts": {
+    "build": "npm rebuild sqlite3 --build-from-source",
     "start": "node src/server.js",
     "test": "node tests/run-tests.js"
   },
