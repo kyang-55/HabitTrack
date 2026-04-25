@@ -36,17 +36,15 @@ async function getFirebaseConfig() {
     return firebaseConfigPromise;
 }
 
-function getContinueUrl(path = "/pages/login.html") {
-    return new URL(path, window.location.origin).toString();
+async function getContinueUrl(path = "/pages/login.html") {
+    const config = await getFirebaseConfig();
+    return new URL(path, config.appOrigin || window.location.origin).toString();
 }
 
-/* =========================
-   🔥 CORE CALL
-========================= */
 async function callFirebaseAuth(endpoint, body) {
     const config = await getFirebaseConfig();
 
-    console.log(`📡 Firebase → ${endpoint}`, body);
+    console.log(`Firebase auth request: ${endpoint}`);
 
     const res = await fetch(
         `https://identitytoolkit.googleapis.com/v1/${endpoint}?key=${encodeURIComponent(config.apiKey)}`,
@@ -61,17 +59,13 @@ async function callFirebaseAuth(endpoint, body) {
 
     if (!res.ok) {
         const code = String(data?.error?.message || "UNKNOWN_ERROR");
-        console.error("❌ Firebase ERROR:", code, data);
+        console.error("Firebase auth error:", code, data);
         throw new Error(getFirebaseErrorMessage(code));
     }
 
-    console.log("✅ Firebase SUCCESS:", endpoint);
     return data;
 }
 
-/* =========================
-   🧠 ERROR MAPPING
-========================= */
 function getFirebaseErrorMessage(code) {
     switch (code) {
     case "EMAIL_EXISTS":
@@ -84,6 +78,11 @@ function getFirebaseErrorMessage(code) {
         return "This account has been disabled.";
     case "TOO_MANY_ATTEMPTS_TRY_LATER":
         return "Too many attempts. Please wait a bit and try again.";
+    case "INVALID_CONTINUE_URI":
+    case "UNAUTHORIZED_CONTINUE_URI_DOMAIN":
+        return "Firebase could not send the email because this app URL is not authorized in Firebase Authentication settings.";
+    case "MISSING_EMAIL":
+        return "Enter an email address before requesting a verification email.";
     case "INVALID_ID_TOKEN":
     case "TOKEN_EXPIRED":
         return "Your sign-in expired. Please try again.";
@@ -96,19 +95,12 @@ function getFirebaseErrorMessage(code) {
     }
 }
 
-/* =========================
-   📝 REGISTER (FIXED)
-========================= */
 async function registerWithFirebase({ name, email, password }) {
-    console.log("🔥 Registering user...");
-
     const signUp = await callFirebaseAuth("accounts:signUp", {
         email,
         password,
         returnSecureToken: true
     });
-
-    console.log("✅ User created:", signUp);
 
     if (name) {
         await callFirebaseAuth("accounts:update", {
@@ -116,34 +108,19 @@ async function registerWithFirebase({ name, email, password }) {
             displayName: name,
             returnSecureToken: false
         });
-
-        console.log("✅ Name updated");
     }
 
-    console.log("📨 Sending verification email...");
-
-    try {
-        await callFirebaseAuth("accounts:sendOobCode", {
-            requestType: "VERIFY_EMAIL",
-            idToken: signUp.idToken,
-            continueUrl: getContinueUrl("/pages/login.html"),
-            canHandleCodeInApp: false
-        });
-
-        console.log("✅ Verification email SENT");
-    } catch (err) {
-        console.error("❌ Verification email FAILED:", err.message);
-    }
+    await callFirebaseAuth("accounts:sendOobCode", {
+        requestType: "VERIFY_EMAIL",
+        idToken: signUp.idToken,
+        continueUrl: await getContinueUrl("/pages/login.html"),
+        canHandleCodeInApp: false
+    });
 
     return signUp;
 }
 
-/* =========================
-   🔑 LOGIN
-========================= */
 async function signInWithFirebase({ email, password }) {
-    console.log("🔐 Signing in...");
-
     return callFirebaseAuth("accounts:signInWithPassword", {
         email,
         password,
@@ -151,40 +128,25 @@ async function signInWithFirebase({ email, password }) {
     });
 }
 
-/* =========================
-   🔁 PASSWORD RESET
-========================= */
 async function sendPasswordResetWithFirebase(email) {
-    console.log("🔁 Sending password reset email...");
-
     return callFirebaseAuth("accounts:sendOobCode", {
         requestType: "PASSWORD_RESET",
         email,
-        continueUrl: getContinueUrl("/pages/reset.html"), // your change kept
+        continueUrl: await getContinueUrl("/pages/reset.html"),
         canHandleCodeInApp: true
     });
 }
 
-/* =========================
-   📧 RESEND VERIFY
-========================= */
 async function sendVerificationEmailWithFirebase(idToken) {
-    console.log("📨 Resending verification email...");
-
     return callFirebaseAuth("accounts:sendOobCode", {
         requestType: "VERIFY_EMAIL",
         idToken,
-        continueUrl: getContinueUrl("/pages/login.html"),
+        continueUrl: await getContinueUrl("/pages/login.html"),
         canHandleCodeInApp: false
     });
 }
 
-/* =========================
-   🍪 SESSION
-========================= */
 async function createServerSessionFromFirebase(idToken, rememberMe) {
-    console.log("🍪 Creating session...");
-
     const res = await fetch(`${API}/auth/firebase-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -195,11 +157,9 @@ async function createServerSessionFromFirebase(idToken, rememberMe) {
     const data = await readJson(res);
 
     if (!res.ok) {
-        console.error("❌ Session failed:", data);
+        console.error("Session failed:", data);
         throw new Error(data?.error || "Unable to create a HabitTrack session.");
     }
-
-    console.log("✅ Session created");
 
     return data;
 }

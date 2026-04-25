@@ -60,9 +60,14 @@ registerForm.addEventListener("submit", async (event) => {
 
     try {
         await window.HabitTrackFirebaseAuth.registerWithFirebase({ name, email, password });
+        const config = await window.HabitTrackFirebaseAuth.getFirebaseConfig();
+        const notice = config.requiresEmailVerification
+            ? "Account created. Check your email for the Firebase verification link before logging in."
+            : "Account created. You can log in now. Firebase may still send a verification email, but local development does not block sign-in while you wait.";
+
         sessionStorage.setItem(
             "habittrack_notice",
-            "Account created. Check your email for the Firebase verification link before logging in."
+            notice
         );
         window.location.replace(`${PAGE_BASE}/login.html`);
     } catch (error) {

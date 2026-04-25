@@ -1,8 +1,4 @@
 require("dotenv").config();
-console.log("API KEY:", process.env.FIREBASE_API_KEY);
-console.log("PROJECT ID:", process.env.FIREBASE_PROJECT_ID);
-console.log("CLIENT EMAIL:", process.env.FIREBASE_CLIENT_EMAIL);
-console.log("PRIVATE KEY EXISTS:", !!process.env.FIREBASE_PRIVATE_KEY);
 
 const crypto = require("crypto");
 const fs = require("fs");
@@ -32,6 +28,7 @@ const FIREBASE_AUTH_DOMAIN = String(process.env.FIREBASE_AUTH_DOMAIN || "").trim
     || (FIREBASE_PROJECT_ID ? `${FIREBASE_PROJECT_ID}.firebaseapp.com` : "");
 const FIREBASE_CLIENT_EMAIL = String(process.env.FIREBASE_CLIENT_EMAIL || "").trim();
 const FIREBASE_PRIVATE_KEY = String(process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+const REQUIRE_FIREBASE_EMAIL_VERIFICATION = readBooleanEnv("REQUIRE_FIREBASE_EMAIL_VERIFICATION", IS_PRODUCTION);
 
 let firebaseAdminAuth = null;
 if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
@@ -118,7 +115,8 @@ app.get("/auth/firebase-config", (req, res) => {
         apiKey: FIREBASE_API_KEY || null,
         projectId: FIREBASE_PROJECT_ID || null,
         authDomain: FIREBASE_AUTH_DOMAIN || null,
-        appOrigin: APP_ORIGIN
+        appOrigin: APP_ORIGIN,
+        requiresEmailVerification: REQUIRE_FIREBASE_EMAIL_VERIFICATION
     });
 });
 
@@ -485,12 +483,22 @@ function isFirebaseAuthConfigured() {
     return Boolean(FIREBASE_API_KEY && FIREBASE_PROJECT_ID && firebaseAdminAuth);
 }
 
+function readBooleanEnv(name, defaultValue) {
+    const value = process.env[name];
+    if (value === undefined || value === "") {
+        return defaultValue;
+    }
+
+    return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+}
+
 function getFirebaseClientConfig() {
     return {
         apiKey: FIREBASE_API_KEY,
         projectId: FIREBASE_PROJECT_ID,
         authDomain: FIREBASE_AUTH_DOMAIN,
-        appOrigin: APP_ORIGIN
+        appOrigin: APP_ORIGIN,
+        requiresEmailVerification: REQUIRE_FIREBASE_EMAIL_VERIFICATION
     };
 }
 
@@ -1283,7 +1291,7 @@ app.post("/auth/firebase-session", async (req, res) => {
             return res.status(400).json({ error: "Firebase account is missing an email address." });
         }
 
-        if (!decodedToken.email_verified) {
+        if (REQUIRE_FIREBASE_EMAIL_VERIFICATION && !decodedToken.email_verified) {
             return res.status(403).json({
                 error: "Verify your email address before signing in to HabitTrack."
             });

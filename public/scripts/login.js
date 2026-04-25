@@ -13,6 +13,14 @@ function setSubmitting(isSubmitting) {
 const loginForm = document.getElementById("loginForm");
 window.HabitTrackAuthUI?.enableBrowserNotifications(loginForm);
 
+function showStoredNotice() {
+    const message = sessionStorage.getItem("habittrack_notice");
+    if (!message) return;
+
+    sessionStorage.removeItem("habittrack_notice");
+    showFeedback(message);
+}
+
 async function redirectIfAuthenticated() {
     try {
         const res = await fetch(`${window.HabitTrackFirebaseAuth.API}/auth/me`, { credentials: "include" });
@@ -68,4 +76,5 @@ document.getElementById("resendVerificationButton")?.addEventListener("click", a
     }
 });
 
+showStoredNotice();
 redirectIfAuthenticated();
