@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "npm rebuild sqlite3 --build-from-source",
+    "db:init": "node src/db/init.js",
     "start": "node src/server.js",
     "test": "node tests/run-tests.js"
   },
