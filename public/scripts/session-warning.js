@@ -1,7 +1,7 @@
 (function initializeSessionWarningModule() {
     const DEFAULT_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
     const DEFAULT_WARNING_DURATION_MS = 60 * 1000;
-    const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "pointerdown"];
+    const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "pointerdown", "input", "focusin"];
 
     let state = null;
 
@@ -114,8 +114,8 @@
             <div class="session-warning__backdrop"></div>
             <section class="session-warning__dialog" role="dialog" aria-modal="true" aria-labelledby="sessionWarningTitle">
                 <p class="session-warning__eyebrow">Session warning</p>
-                <h2 id="sessionWarningTitle" class="session-warning__title">You are about to be signed out</h2>
-                <p class="session-warning__copy">We noticed 10 minutes of inactivity. Stay signed in to keep working without interruption.</p>
+                <h2 id="sessionWarningTitle" class="session-warning__title">Your session is about to expire</h2>
+                <p class="session-warning__copy">We noticed about 10 minutes of inactivity. Stay signed in now so you do not lose your progress.</p>
                 <div id="sessionWarningCountdown" class="session-warning__countdown">Time remaining: 1:00</div>
                 <div class="session-warning__actions">
                     <button id="sessionWarningLogout" class="session-warning__btn session-warning__btn--secondary" type="button">Log out now</button>
@@ -187,6 +187,13 @@
         state.root.classList.remove("hidden");
         state.root.setAttribute("aria-hidden", "false");
         document.body.classList.add("modal-open");
+        window.dispatchEvent(new CustomEvent("habittrack:session-warning", {
+            detail: {
+                idleTimeoutMs: state.idleTimeoutMs,
+                warningDurationMs: state.warningDurationMs,
+                warningEndsAt: state.warningEndsAt
+            }
+        }));
         updateCountdown();
 
         state.countdownIntervalId = window.setInterval(updateCountdown, 250);

@@ -29,6 +29,7 @@ const FIREBASE_AUTH_DOMAIN = String(process.env.FIREBASE_AUTH_DOMAIN || "").trim
 const FIREBASE_CLIENT_EMAIL = String(process.env.FIREBASE_CLIENT_EMAIL || "").trim();
 const FIREBASE_PRIVATE_KEY = String(process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
 const REQUIRE_FIREBASE_EMAIL_VERIFICATION = readBooleanEnv("REQUIRE_FIREBASE_EMAIL_VERIFICATION", IS_PRODUCTION);
+const HABIT_AUTO_DELETE_DAYS = 30;
 
 let firebaseAdminAuth = null;
 if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
@@ -183,6 +184,95 @@ function normalizeEmail(email) {
     return String(email || "").trim().toLowerCase();
 }
 
+function normalizeProfileText(value, maxLength) {
+    return String(value || "").trim().replace(/\s+/g, " ").slice(0, maxLength);
+}
+
+function normalizeUsername(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
+function normalizeLoginIdentifier(value) {
+    return normalizeEmail(value);
+}
+
+function isValidUsername(value) {
+    return /^[a-z0-9._-]{3,24}$/.test(normalizeUsername(value));
+}
+
+function buildFullName(firstName, lastName, fallbackName = "") {
+    return [firstName, lastName].filter(Boolean).join(" ") || normalizeProfileText(fallbackName, 80);
+}
+
+function splitNameParts(value) {
+    const parts = normalizeProfileText(value, 80).split(/\s+/).filter(Boolean);
+    return {
+        firstName: parts[0] || "",
+        lastName: parts.slice(1).join(" ")
+    };
+}
+
+async function createUniqueUsername(baseValue, fallbackValue) {
+    const normalizedBase = normalizeUsername(baseValue);
+    const normalizedFallback = normalizeUsername(fallbackValue);
+    const rawCandidate = isValidUsername(normalizedBase)
+        ? normalizedBase
+        : normalizedFallback.replace(/[^a-z0-9._-]/g, "").slice(0, 24);
+    const base = isValidUsername(rawCandidate) ? rawCandidate : `user${Date.now().toString(36)}`.slice(0, 24);
+
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+        const suffix = attempt === 0 ? "" : `-${attempt + 1}`;
+        const candidate = `${base.slice(0, 24 - suffix.length)}${suffix}`;
+        const existingUser = await dbGet("SELECT id FROM users WHERE LOWER(username) = ?", [candidate]);
+
+        if (!existingUser) {
+            return candidate;
+        }
+    }
+
+    return `${base.slice(0, 16)}-${crypto.randomBytes(3).toString("hex")}`;
+}
+
+async function usernameExists(username, excludeUserId = null) {
+    const query = excludeUserId === null
+        ? "SELECT id FROM users WHERE LOWER(username) = ?"
+        : "SELECT id FROM users WHERE LOWER(username) = ? AND id != ?";
+    const params = excludeUserId === null ? [username] : [username, excludeUserId];
+    const existingUser = await dbGet(query, params);
+    return Boolean(existingUser);
+}
+
+async function suggestAvailableUsernames(baseValue, fallbackValue, count = 3, excludeUserId = null) {
+    const normalizedBase = normalizeUsername(baseValue);
+    const normalizedFallback = normalizeUsername(fallbackValue);
+    const rawCandidate = isValidUsername(normalizedBase)
+        ? normalizedBase
+        : normalizedFallback.replace(/[^a-z0-9._-]/g, "").slice(0, 24);
+    const base = isValidUsername(rawCandidate) ? rawCandidate : `user${Date.now().toString(36)}`.slice(0, 24);
+    const suggestions = [];
+
+    for (let attempt = 1; attempt <= 60 && suggestions.length < count; attempt += 1) {
+        const suffix = `-${attempt + 1}`;
+        const candidate = `${base.slice(0, 24 - suffix.length)}${suffix}`;
+
+        // eslint-disable-next-line no-await-in-loop
+        if (await usernameExists(candidate, excludeUserId)) {
+            continue;
+        }
+
+        suggestions.push(candidate);
+    }
+
+    if (suggestions.length < count) {
+        const fallbackSuggestion = await createUniqueUsername(base, fallbackValue);
+        if (!suggestions.includes(fallbackSuggestion) && fallbackSuggestion !== normalizeUsername(baseValue)) {
+            suggestions.push(fallbackSuggestion);
+        }
+    }
+
+    return suggestions.slice(0, count);
+}
+
 function validatePassword(password) {
     const value = String(password || "");
 
@@ -202,7 +292,32 @@ function validatePassword(password) {
 
 function normalizeHabitCategory(category) {
     const normalized = String(category || "").trim().replace(/\s+/g, " ");
-    return normalized ? normalized.slice(0, 60) : null;
+    if (!normalized) {
+        return null;
+    }
+
+    const canonicalCategoryMap = {
+        health: "Health",
+        fitness: "Fitness",
+        nutrition: "Nutrition",
+        sleep: "Sleep",
+        mindfulness: "Mindfulness",
+        learning: "Learning",
+        work: "Work",
+        productivity: "Productivity",
+        "self-care": "Self-care",
+        selfcare: "Self-care",
+        finance: "Finance",
+        relationships: "Relationships",
+        home: "Home"
+    };
+    const canonicalKey = normalized.toLowerCase().replace(/\s*-\s*/g, "-").replace(/\s+/g, "");
+
+    if (canonicalCategoryMap[canonicalKey]) {
+        return canonicalCategoryMap[canonicalKey];
+    }
+
+    return normalized.slice(0, 60);
 }
 
 function normalizeHabitIcon(value) {
@@ -414,6 +529,16 @@ function formatDateOnly(date) {
     return `${year}-${month}-${day}`;
 }
 
+function formatSqliteDateTime(date = new Date()) {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 function getHabitLogRetentionCutoff(retention, now = new Date()) {
     const normalized = normalizeHabitLogRetention(retention);
 
@@ -439,6 +564,15 @@ function getHabitLogRetentionCutoff(retention, now = new Date()) {
 
     baseDate.setDate(baseDate.getDate() - (retentionDays - 1));
     return formatDateOnly(baseDate);
+}
+
+function getHabitAutoDeleteCutoff(now = new Date()) {
+    const autoDeleteDays = typeof HABIT_AUTO_DELETE_DAYS === "number"
+        ? HABIT_AUTO_DELETE_DAYS
+        : 30;
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() - autoDeleteDays);
+    return formatSqliteDateTime(cutoff);
 }
 
 function serializeHabitTags(tags) {
@@ -510,10 +644,18 @@ async function verifyFirebaseIdToken(idToken) {
     return firebaseAdminAuth.verifyIdToken(String(idToken || "").trim());
 }
 
-async function findOrCreateUserFromFirebaseIdentity(decodedToken) {
+async function findOrCreateUserFromFirebaseIdentity(decodedToken, requestedProfile = {}) {
     const firebaseUid = String(decodedToken?.uid || "").trim();
     const email = normalizeEmail(decodedToken?.email);
     const displayName = String(decodedToken?.name || "").trim();
+    const requestedFirstName = normalizeProfileText(requestedProfile?.firstName, 40);
+    const requestedLastName = normalizeProfileText(requestedProfile?.lastName, 40);
+    const splitDisplayName = splitNameParts(displayName);
+    const firstName = requestedFirstName || splitDisplayName.firstName || "HabitTrack";
+    const lastName = requestedLastName || splitDisplayName.lastName;
+    const usernameSeed = displayName || email.split("@")[0];
+    const username = await createUniqueUsername(usernameSeed, email.split("@")[0]);
+    const name = buildFullName(firstName, lastName, displayName || username || email.split("@")[0] || "HabitTrack User");
 
     if (!firebaseUid || !email) {
         throw new Error("Firebase token is missing required identity fields.");
@@ -525,13 +667,20 @@ async function findOrCreateUserFromFirebaseIdentity(decodedToken) {
     );
 
     if (user) {
-        if (user.email !== email) {
-            await dbRun(
-                "UPDATE users SET email = ? WHERE id = ?",
-                [email, user.id]
-            );
-            user.email = email;
-        }
+        await dbRun(
+            `
+                UPDATE users
+                SET email = ?,
+                    name = CASE WHEN name IS NULL OR TRIM(name) = '' THEN ? ELSE name END,
+                    first_name = CASE WHEN first_name IS NULL OR TRIM(first_name) = '' THEN ? ELSE first_name END,
+                    last_name = CASE WHEN last_name IS NULL THEN ? ELSE last_name END,
+                    username = CASE WHEN username IS NULL OR TRIM(username) = '' THEN ? ELSE username END
+                WHERE id = ?
+            `,
+            [email, name, firstName, lastName, username, user.id]
+        );
+        user.email = email;
+        user.name = user.name || name;
 
         return user;
     }
@@ -543,22 +692,30 @@ async function findOrCreateUserFromFirebaseIdentity(decodedToken) {
 
     if (user) {
         await dbRun(
-            "UPDATE users SET firebase_uid = ? WHERE id = ?",
-            [firebaseUid, user.id]
+            `
+                UPDATE users
+                SET firebase_uid = ?,
+                    name = CASE WHEN name IS NULL OR TRIM(name) = '' THEN ? ELSE name END,
+                    first_name = CASE WHEN first_name IS NULL OR TRIM(first_name) = '' THEN ? ELSE first_name END,
+                    last_name = CASE WHEN last_name IS NULL THEN ? ELSE last_name END,
+                    username = CASE WHEN username IS NULL OR TRIM(username) = '' THEN ? ELSE username END
+                WHERE id = ?
+            `,
+            [firebaseUid, name, firstName, lastName, username, user.id]
         );
         user.firebase_uid = firebaseUid;
+        user.name = user.name || name;
         return user;
     }
 
     const userCountRow = await dbGet("SELECT COUNT(*) AS count FROM users");
     const role = userCountRow?.count === 0 ? "admin" : "user";
-    const name = displayName || email.split("@")[0] || "HabitTrack User";
     const result = await dbRun(
         `
-            INSERT INTO users (name, email, password_hash, firebase_uid, role)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (name, first_name, last_name, username, email, password_hash, firebase_uid, role)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [name, email, "firebase-auth", firebaseUid, role]
+        [name, firstName, lastName, username, email, "firebase-auth", firebaseUid, role]
     );
 
     if (role === "admin") {
@@ -694,6 +851,19 @@ async function pruneHabitLogsByRetention(now = new Date()) {
     return prunedCount;
 }
 
+async function pruneExpiredHabits(now = new Date()) {
+    const cutoffDateTime = getHabitAutoDeleteCutoff(now);
+    const result = await dbRun(
+        `
+            DELETE FROM habits
+            WHERE datetime(COALESCE(created_at, CURRENT_TIMESTAMP)) <= datetime(?)
+        `,
+        [cutoffDateTime]
+    );
+
+    return Number(result?.changes || 0);
+}
+
 function hashPassword(password) {
     return new Promise((resolve, reject) => {
         const salt = crypto.randomBytes(16).toString("hex");
@@ -820,6 +990,29 @@ app.get("/auth/me", requireAuth, (req, res) => {
     res.json({ user: req.user });
 });
 
+app.post("/auth/resolve-login", async (req, res) => {
+    try {
+        const identifier = normalizeEmail(req.body?.identifier);
+
+        if (!identifier) {
+            return res.status(400).json({ error: "Enter an email address." });
+        }
+
+        const user = await dbGet(
+            "SELECT email FROM users WHERE email = ?",
+            [identifier]
+        );
+
+        if (!user?.email) {
+            return res.status(404).json({ error: "No account found for that email address." });
+        }
+
+        return res.json({ email: user.email });
+    } catch (error) {
+        return res.status(500).json({ error: "Unable to resolve that login." });
+    }
+});
+
 function requireAdmin(req, res, next) {
     if (req.user?.role !== "admin") {
         return res.status(403).json({ error: "Admin access required." });
@@ -846,7 +1039,7 @@ async function getProfileSummary(userId) {
     const [user, totals, todayRow, recentHabits] = await Promise.all([
         dbGet(
             `
-                SELECT id, name, email, role, avatar_path, created_at
+                SELECT id, name, first_name, last_name, email, role, avatar_path, created_at
                 , theme_preference
                 FROM users
                 WHERE id = ?
@@ -906,6 +1099,8 @@ async function getProfileSummary(userId) {
         user: {
             id: user.id,
             name: user.name,
+            firstName: user.first_name || "",
+            lastName: user.last_name || "",
             email: user.email,
             role: user.role,
             avatarPath: user.avatar_path || null,
@@ -1042,15 +1237,17 @@ app.patch("/profile", requireAuth, async (req, res) => {
     let newlySavedAvatarPath = null;
 
     try {
-        const name = String(req.body.name || "").trim();
+        const firstName = normalizeProfileText(req.body.firstName, 40);
+        const lastName = normalizeProfileText(req.body.lastName, 40);
+        const name = buildFullName(firstName, lastName, req.body.name);
         const email = normalizeEmail(req.body.email);
         const avatarDataUrl = typeof req.body.avatarDataUrl === "string"
             ? req.body.avatarDataUrl
             : "";
         const removeAvatar = Boolean(req.body.removeAvatar);
 
-        if (!name) {
-            return res.status(400).json({ error: "Name is required." });
+        if (!firstName) {
+            return res.status(400).json({ error: "First name is required." });
         }
 
         if (name.length > 80) {
@@ -1097,10 +1294,10 @@ app.patch("/profile", requireAuth, async (req, res) => {
         await dbRun(
             `
                 UPDATE users
-                SET name = ?, email = ?, avatar_path = ?
+                SET name = ?, first_name = ?, last_name = ?, email = ?, avatar_path = ?
                 WHERE id = ?
             `,
-            [name, email, nextAvatarPath, req.user.id]
+            [name, firstName, lastName, email, nextAvatarPath, req.user.id]
         );
 
         if (previousAvatarPathToDelete && previousAvatarPathToDelete !== nextAvatarPath) {
@@ -1275,6 +1472,10 @@ app.post("/auth/firebase-session", async (req, res) => {
 
         const idToken = String(req.body?.idToken || "").trim();
         const rememberMe = Boolean(req.body?.rememberMe);
+        const requestedProfile = {
+            firstName: req.body?.firstName,
+            lastName: req.body?.lastName
+        };
 
         if (!idToken) {
             return res.status(400).json({ error: "Firebase ID token is required." });
@@ -1297,7 +1498,7 @@ app.post("/auth/firebase-session", async (req, res) => {
             });
         }
 
-        const user = await findOrCreateUserFromFirebaseIdentity(decodedToken);
+        const user = await findOrCreateUserFromFirebaseIdentity(decodedToken, requestedProfile);
         await replaceSession(res, user.id, rememberMe);
 
         return res.json({
@@ -1432,8 +1633,8 @@ app.post("/habits", requireAuth, async (req, res) => {
 
         const result = await dbRun(
             `
-                INSERT INTO habits (user_id, name, description, category, icon, tags, is_favorite)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO habits (user_id, name, description, category, icon, tags, is_favorite, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             `,
             [req.user.id, name, description || null, category, icon, serializeHabitTags(tags), isFavorite]
         );
@@ -1549,22 +1750,44 @@ app.post("/habits/logs/bulk", requireAuth, async (req, res) => {
     try {
         const completionDate = String(req.body?.completion_date || "").trim() || new Date().toISOString().split("T")[0];
         const today = new Date().toISOString().split("T")[0];
+        const requestedHabitIds = Array.isArray(req.body?.habitIds)
+            ? req.body.habitIds.map((id) => Number(id)).filter((id) => Number.isInteger(id))
+            : [];
 
         if (completionDate > today) {
             return res.status(400).json({ error: "You cannot log habits for a future date." });
         }
 
-        const habits = await dbAll(
-            `
-                SELECT id
-                FROM habits
-                WHERE user_id = ?
-            `,
-            [req.user.id]
-        );
+        let habits;
+
+        if (requestedHabitIds.length > 0) {
+            const placeholders = requestedHabitIds.map(() => "?").join(", ");
+            habits = await dbAll(
+                `
+                    SELECT id
+                    FROM habits
+                    WHERE user_id = ?
+                      AND id IN (${placeholders})
+                `,
+                [req.user.id, ...requestedHabitIds]
+            );
+        } else {
+            habits = await dbAll(
+                `
+                    SELECT id
+                    FROM habits
+                    WHERE user_id = ?
+                `,
+                [req.user.id]
+            );
+        }
 
         if (!Array.isArray(habits) || habits.length === 0) {
-            return res.status(400).json({ error: "You do not have any habits to complete yet." });
+            return res.status(400).json({
+                error: requestedHabitIds.length > 0
+                    ? "Select at least one habit you own."
+                    : "You do not have any habits to complete yet."
+            });
         }
 
         let createdCount = 0;
@@ -1779,6 +2002,9 @@ db.ready.then(async () => {
     await pruneExpiredAuthArtifacts().catch((error) => {
         console.error("Failed to prune auth artifacts on startup:", error.message);
     });
+    await pruneExpiredHabits().catch((error) => {
+        console.error("Failed to prune expired habits on startup:", error.message);
+    });
     await pruneHabitLogsByRetention().catch((error) => {
         console.error("Failed to prune habit logs on startup:", error.message);
     });
@@ -1790,6 +2016,9 @@ db.ready.then(async () => {
     setInterval(() => {
         pruneExpiredAuthArtifacts().catch((error) => {
             console.error("Failed to prune auth artifacts:", error.message);
+        });
+        pruneExpiredHabits().catch((error) => {
+            console.error("Failed to prune expired habits:", error.message);
         });
         pruneHabitLogsByRetention().catch((error) => {
             console.error("Failed to prune habit logs:", error.message);

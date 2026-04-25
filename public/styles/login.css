@@ -155,6 +155,12 @@ h1 {
     gap: 12px;
 }
 
+.auth-form__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
 .auth-checkbox {
     display: flex;
     align-items: center;
@@ -371,6 +377,10 @@ input:focus {
 }
 
 @media (max-width: 520px) {
+    .auth-form__row {
+        grid-template-columns: 1fr;
+    }
+
     .brand-mark {
         top: 16px;
         left: 16px;

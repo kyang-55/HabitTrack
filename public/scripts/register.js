@@ -4,6 +4,10 @@ function showFeedback(message) {
     document.getElementById("feedback").textContent = message;
 }
 
+function normalizeProfileName(value) {
+    return String(value || "").trim().replace(/\s+/g, " ").slice(0, 40);
+}
+
 const registerForm = document.getElementById("registerForm");
 const passwordMeter = window.HabitTrackAuthUI?.attachPasswordMeter({
     passwordInputId: "password",
@@ -32,10 +36,17 @@ registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     showFeedback("");
 
-    const name = document.getElementById("name").value.trim();
+    const firstName = normalizeProfileName(document.getElementById("firstName").value);
+    const lastName = normalizeProfileName(document.getElementById("lastName").value);
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
     const confirmPassword = document.getElementById("confirmPassword").value;
+    const rememberMe = document.getElementById("rememberMe").checked;
+
+    if (!firstName) {
+        showFeedback("First name is required.");
+        return;
+    }
 
     if (!passwordMeter?.isValid()) {
         const guidance = "Password must be at least 8 characters and include at least one letter and one number.";
@@ -59,7 +70,13 @@ registerForm.addEventListener("submit", async (event) => {
     }
 
     try {
-        await window.HabitTrackFirebaseAuth.registerWithFirebase({ name, email, password });
+        await window.HabitTrackFirebaseAuth.registerWithFirebase({ firstName, lastName, email, password });
+        sessionStorage.setItem("habittrack_pending_profile", JSON.stringify({
+            firstName,
+            lastName,
+            email,
+            rememberMe
+        }));
         const config = await window.HabitTrackFirebaseAuth.getFirebaseConfig();
         const notice = config.requiresEmailVerification
             ? "Account created. Check your email for the Firebase verification link before logging in."

@@ -35,6 +35,10 @@ const appFunctions = loadFunctions("public/scripts/app.js", [
     "normalizeFavoriteFlag",
     "getExistingHabitNameSet",
     "getCategorySuggestionTemplates",
+    "normalizeSuggestionTheme",
+    "inferSuggestionThemesFromText",
+    "getHabitSuggestionThemes",
+    "rankSuggestionThemes",
     "getFunSuggestionCatalog",
     "pickUnusedSuggestions",
     "buildPersonalizedSuggestions",
@@ -144,6 +148,8 @@ module.exports = async function runAppUnitTests() {
 
     failed += Number(!(await runTest("app.js unit tests: suggestion helpers normalize names and avoid duplicates", () => {
         assert.equal(appFunctions.buildSuggestionNameKey("  Drink Water  "), "drink water");
+        assert.equal(appFunctions.normalizeHabitCategory(" self care "), "Self-care");
+        assert.equal(appFunctions.normalizeHabitCategory("SELF-CARE"), "Self-care");
         assert.deepEqual(
             [...appFunctions.getExistingHabitNameSet([{ name: "Read" }, { name: "  read " }, { name: "Walk" }])],
             ["read", "walk"]
@@ -251,12 +257,14 @@ module.exports = async function runAppUnitTests() {
                 id: 1,
                 name: "Morning Walk",
                 category: "Fitness",
+                tags: ["books", "cardio"],
                 stats: { completionRate30: 70, currentStreak: 5, totalCompletions: 10, lowEffortDays: 0 }
             },
             {
                 id: 2,
                 name: "Deep Work",
                 category: "Work",
+                tags: ["mindfullness", "budget"],
                 stats: { completionRate30: 30, currentStreak: 0, totalCompletions: 8, lowEffortDays: 3 }
             }
         ];
@@ -266,10 +274,50 @@ module.exports = async function runAppUnitTests() {
 
         assert.ok(personalized.length > 0);
         assert.ok(personalized.some((item) => /consisten|soft|momentum|lighter/i.test(item.reason)));
+        assert.ok(personalized.some((item) => ["Fitness", "Learning", "Mindfulness", "Work"].includes(item.category)));
+        assert.ok(personalized.every((item) => Array.isArray(item.tags) && item.tags.length > 0));
         assert.equal(fun.length, 3);
         assert.ok(fun.every((item) => item.name && item.description));
         assert.ok(appFunctions.getCategorySuggestionTemplates().Fitness.length > 0);
         assert.ok(appFunctions.getFunSuggestionCatalog().length >= 4);
+        assert.equal(appFunctions.normalizeSuggestionTheme("mindfullness"), "Mindfulness");
+        assert.deepEqual(
+            [...appFunctions.inferSuggestionThemesFromText("books cardio budget").sort()],
+            ["Finance", "Fitness", "Learning"]
+        );
+        assert.deepEqual(
+            [...appFunctions.getHabitSuggestionThemes({ category: "", tags: ["books", "cardio", "budget"] }).sort()],
+            ["Finance", "Fitness", "Learning"]
+        );
+        assert.deepEqual(
+            [...appFunctions.rankSuggestionThemes(habits).slice(0, 4)],
+            ["Fitness", "Learning", "Finance", "Mindfulness"]
+        );
+    })));
+
+    failed += Number(!(await runTest("app.js unit tests: personalized suggestions refill with alternate categories after one is used", () => {
+        const habits = [
+            {
+                id: 1,
+                name: "Walk for one song",
+                category: "Fitness",
+                tags: ["cardio"],
+                stats: { completionRate30: 80, currentStreak: 6, totalCompletions: 14, lowEffortDays: 0 }
+            },
+            {
+                id: 2,
+                name: "Budget review",
+                category: "",
+                tags: ["budget"],
+                stats: { completionRate30: 20, currentStreak: 0, totalCompletions: 4, lowEffortDays: 0 }
+            }
+        ];
+
+        const suggestions = appFunctions.buildPersonalizedSuggestions(habits);
+
+        assert.equal(suggestions.length, 3);
+        assert.equal(new Set(suggestions.map((item) => item.category)).size >= 2, true);
+        assert.ok(suggestions.some((item) => item.category === "Finance"));
     })));
 
     // Unit tests for the pure helper logic used by public/scripts/app.js.

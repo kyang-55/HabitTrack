@@ -324,6 +324,10 @@ body[data-theme="dark"] .chart-dot {
     font-size: 0.94rem;
 }
 
+.section-header .btn {
+    flex: 0 0 auto;
+}
+
 .panel {
     margin-top: 14px;
     display: grid;
@@ -741,6 +745,13 @@ select:focus {
     margin: 0;
 }
 
+.suggestions-panel__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
 .suggestions-grid {
     margin-top: 16px;
     display: grid;
@@ -760,6 +771,10 @@ select:focus {
     justify-content: space-between;
     align-items: flex-start;
     gap: 12px;
+}
+
+.suggestion-column__top .btn {
+    flex: 0 0 auto;
 }
 
 .suggestion-column__copy {
@@ -858,8 +873,36 @@ select:focus {
     gap: 12px;
 }
 
+.habit-select {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding-top: 3px;
+}
+
+.habit-select input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
 .habit-info {
+    flex: 1 1 auto;
     min-width: 0;
+}
+
+.habit-details {
+    display: grid;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.habit-details[hidden] {
+    display: none;
 }
 
 .habit-name {
@@ -921,6 +964,26 @@ select:focus {
     color: var(--text-muted);
 }
 
+.habit-meta-pill--details {
+    cursor: pointer;
+    color: #4450b3;
+    background: rgba(93, 107, 255, 0.1);
+    border-color: rgba(93, 107, 255, 0.18);
+}
+
+.habit-meta-pill--details:hover,
+.habit-meta-pill--details-active {
+    background: rgba(93, 107, 255, 0.18);
+    color: #3541a0;
+}
+
+.habit-details-action {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 6px;
+}
+
 .habit-meta-pill--category {
     background: rgba(93, 107, 255, 0.12);
     color: #4450b3;
@@ -971,10 +1034,18 @@ select:focus {
     line-height: 1.45;
 }
 
+.habit-action-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
 .habit-actions {
     display: flex;
+    justify-content: flex-end;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .btn-favorite,
@@ -986,7 +1057,8 @@ select:focus {
     background: var(--surface-muted);
     color: var(--text);
     border-color: var(--border);
-    min-width: 62px;
+    min-width: max-content;
+    white-space: nowrap;
 }
 
 .btn-favorite {
@@ -1227,6 +1299,12 @@ select:focus {
 
     .section-header {
         margin-top: 22px;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .section-header .btn {
+        width: 100%;
     }
 
     .panel {
@@ -1251,6 +1329,14 @@ select:focus {
         flex-direction: column;
     }
 
+    .suggestions-panel__top {
+        flex-direction: column;
+    }
+
+    .suggestions-panel__top .btn {
+        width: 100%;
+    }
+
     .analytics-controls,
     .analytics-cards {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1264,6 +1350,10 @@ select:focus {
         flex-direction: column;
     }
 
+    .suggestion-column__top .btn {
+        width: 100%;
+    }
+
     .welcome-modal__dialog {
         padding: 22px;
     }
@@ -1275,6 +1365,18 @@ select:focus {
     .habit-top {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .habit-select {
+        justify-content: flex-start;
+        min-height: auto;
+        padding-top: 0;
+    }
+
+    .habit-action-panel,
+    .habit-actions {
+        max-width: none;
+        width: 100%;
     }
 
     .habit-actions {
@@ -1374,6 +1476,11 @@ select:focus {
 
     .habit-actions {
         justify-content: stretch;
+        flex-wrap: wrap;
+    }
+
+    .habit-action-panel {
+        align-items: stretch;
     }
 
     .habit-actions .btn {

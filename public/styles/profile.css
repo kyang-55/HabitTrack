@@ -88,6 +88,7 @@ body.modal-open {
 }
 
 .past-activity-page .profile-grid {
+    grid-template-columns: minmax(320px, 1.25fr) minmax(0, 1.75fr);
     gap: 12px;
     margin-top: 12px;
 }
@@ -109,6 +110,194 @@ body.modal-open {
 
 .past-activity-page .activity-controls {
     gap: 12px;
+}
+
+.past-activity-page .analytics-controls,
+.past-activity-page .analytics-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.past-activity-page .analytics-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 12px;
+}
+
+.past-activity-page .analytics-card {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-strong);
+}
+
+.past-activity-page .analytics-card span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+}
+
+.past-activity-page .analytics-card strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 1.55rem;
+    line-height: 1;
+}
+
+.past-activity-page .analytics-card p {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.past-activity-page .chart-stage {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: var(--surface-strong);
+}
+
+.past-activity-page .chart-stage--dual-donut {
+    gap: 16px;
+}
+
+.past-activity-page .chart-stage__copy--full {
+    max-width: 48rem;
+}
+
+.past-activity-page .chart-stage__copy h3 {
+    margin: 0;
+    font-size: 1.08rem;
+}
+
+.past-activity-page .donut-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
+}
+
+.past-activity-page .donut-panel {
+    display: grid;
+    grid-template-rows: minmax(78px, auto) 1fr;
+    gap: 10px;
+    align-content: stretch;
+    height: 100%;
+}
+
+.past-activity-page .donut-panel .chart-stage__copy {
+    display: grid;
+    align-content: start;
+}
+
+.past-activity-page .chart-description {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+}
+
+.past-activity-page .chart-canvas {
+    min-height: 250px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(247, 249, 255, 0.92), rgba(238, 243, 255, 0.82));
+}
+
+.past-activity-page .chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.past-activity-page .chart-canvas--donut {
+    min-height: 430px;
+    display: grid;
+    align-items: stretch;
+    justify-items: stretch;
+}
+
+.past-activity-page .chart-grid-line {
+    stroke: rgba(93, 107, 255, 0.12);
+    stroke-width: 1;
+}
+
+.past-activity-page .chart-axis-line {
+    stroke: rgba(31, 42, 68, 0.22);
+    stroke-width: 1.3;
+}
+
+.past-activity-page .chart-axis-label {
+    fill: var(--text-muted);
+    font-size: 0.72rem;
+}
+
+.past-activity-page .chart-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4;
+}
+
+.past-activity-page .chart-area {
+    fill: url(#pastActivityChartFillGradient);
+}
+
+.past-activity-page .chart-dot,
+.past-activity-page .chart-bar {
+    fill: var(--accent);
+}
+
+.past-activity-page .chart-donut-slice {
+    stroke: rgba(255, 255, 255, 0.9);
+    stroke-width: 2;
+}
+
+.past-activity-page .chart-donut-total {
+    fill: var(--text);
+    font-size: 1.7rem;
+    font-weight: 800;
+}
+
+.past-activity-page .chart-donut-progress {
+    filter: drop-shadow(0 10px 18px rgba(93, 107, 255, 0.16));
+}
+
+.past-activity-page .chart-donut-metric-label {
+    fill: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.past-activity-page .chart-donut-metric-value {
+    fill: var(--text);
+    font-size: 1.28rem;
+    font-weight: 800;
+}
+
+.past-activity-page .chart-svg--donut {
+    height: 100%;
+}
+
+.past-activity-page .chart-svg--donut text {
+    fill: var(--text);
+    font-family: "Lato", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.past-activity-page .chart-svg--donut .chart-axis-label,
+.past-activity-page .chart-svg--donut .chart-donut-metric-label {
+    fill: var(--text-muted);
+}
+
+.past-activity-page .chart-empty {
+    display: grid;
+    min-height: 230px;
+    place-items: center;
+    color: var(--text-muted);
+    text-align: center;
 }
 
 .past-activity-page .stat-grid {
@@ -355,8 +544,86 @@ body[data-theme="dark"] .profile-meta__item {
     margin-top: 14px;
 }
 
+.profile-page .profile-grid {
+    grid-template-columns: minmax(360px, 1.15fr) minmax(300px, 0.85fr);
+    grid-template-areas:
+        "account progress"
+        "account theme"
+        "focus delete";
+    grid-auto-rows: minmax(0, auto);
+    align-items: stretch;
+}
+
 .profile-card {
     padding: 20px;
+}
+
+.profile-page .profile-card {
+    padding: 16px 17px;
+}
+
+.profile-card--account {
+    grid-area: account;
+    align-self: stretch;
+    min-height: 100%;
+}
+
+.profile-card--account .profile-card__header {
+    display: grid;
+    gap: 8px;
+}
+
+.profile-card--account .profile-card__copy {
+    max-width: 30rem;
+}
+
+.profile-card--compact {
+    justify-self: start;
+    align-self: start;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.profile-card--compact .profile-card__header {
+    display: grid;
+    justify-content: start;
+    gap: 8px;
+}
+
+.profile-card--compact .profile-card__copy {
+    max-width: 25rem;
+}
+
+.profile-card--theme .theme-picker {
+    grid-template-columns: repeat(2, max-content);
+}
+
+.profile-page .profile-card--theme {
+    grid-area: theme;
+    justify-self: stretch;
+    align-self: stretch;
+    width: 100%;
+}
+
+.profile-card--progress {
+    grid-area: progress;
+}
+
+.profile-card--focus {
+    grid-area: focus;
+}
+
+.profile-card--delete {
+    grid-area: delete;
+}
+
+.profile-card--overview .stat-grid {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+}
+
+.profile-card--overview {
+    justify-self: stretch;
+    width: 100%;
 }
 
 .profile-card--wide {
@@ -385,8 +652,37 @@ body[data-theme="dark"] .profile-card--danger {
     margin-bottom: 14px;
 }
 
+.profile-page .profile-card__header {
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.profile-page .profile-card__eyebrow {
+    margin-bottom: 6px;
+}
+
+.profile-page .profile-card__copy,
+.profile-page .profile-subtitle {
+    margin-top: 6px;
+    line-height: 1.45;
+}
+
 .profile-form {
     display: grid;
+    gap: 12px;
+}
+
+.profile-page .profile-form,
+.profile-page .profile-form__row,
+.profile-page .theme-picker,
+.profile-page .stat-grid,
+.profile-page .recent-habits {
+    gap: 10px;
+}
+
+.profile-form__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
 }
 
@@ -397,6 +693,11 @@ body[data-theme="dark"] .profile-card--danger {
     border-radius: 24px;
     border: 1px solid rgba(195, 72, 124, 0.18);
     background: linear-gradient(145deg, rgba(255, 247, 250, 0.98), rgba(255, 239, 245, 0.94));
+}
+
+.profile-page .danger-zone {
+    gap: 10px;
+    padding: 14px;
 }
 
 body[data-theme="dark"] .danger-zone {
@@ -415,8 +716,17 @@ body[data-theme="dark"] .danger-zone {
     background: linear-gradient(145deg, rgba(247, 249, 255, 0.96), rgba(238, 243, 255, 0.92));
 }
 
+.profile-page .avatar-editor {
+    gap: 14px;
+    margin-bottom: 2px;
+    padding: 14px;
+}
+
 body[data-theme="dark"] .avatar-editor,
 body[data-theme="dark"] .stat-card,
+body[data-theme="dark"] .analytics-card,
+body[data-theme="dark"] .chart-stage,
+body[data-theme="dark"] .chart-canvas,
 body[data-theme="dark"] .habit-row,
 body[data-theme="dark"] .activity-row,
 body[data-theme="dark"] .empty-state,
@@ -443,11 +753,36 @@ body[data-theme="dark"] .crop-modal__dialog {
     line-height: 1.5;
 }
 
+.profile-page .avatar-editor__copy,
+.profile-page .avatar-editor__hint {
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
 .avatar-editor__actions {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     margin-top: 14px;
+}
+
+.profile-page .avatar-editor__actions {
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.profile-page .btn,
+.profile-page input,
+.profile-page select {
+    font-size: 0.93rem;
+}
+
+.profile-page .btn {
+    padding: 10px 14px;
+}
+
+.profile-page .theme-toggle {
+    min-height: 48px;
 }
 
 .profile-label {
@@ -544,6 +879,11 @@ body[data-theme="dark"] .btn-secondary:hover {
     background: linear-gradient(145deg, rgba(247, 249, 255, 0.95), rgba(238, 243, 255, 0.9));
 }
 
+.profile-page .stat-card,
+.profile-page .focus-summary__card {
+    padding: 12px 13px;
+}
+
 .stat-card span {
     display: block;
     color: var(--text-muted);
@@ -557,15 +897,126 @@ body[data-theme="dark"] .btn-secondary:hover {
     line-height: 1;
 }
 
+.profile-page .stat-card strong {
+    margin-top: 5px;
+}
+
+.profile-card--progress {
+    display: grid;
+    align-content: start;
+    align-self: stretch;
+}
+
+.stat-grid--progress {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+    gap: 10px;
+    height: 100%;
+}
+
+.stat-grid--progress .stat-card {
+    display: grid;
+    align-content: space-between;
+    min-height: 94px;
+    padding: 14px;
+}
+
+.profile-page .stat-grid--progress .stat-card {
+    min-height: 82px;
+    padding: 12px 13px;
+}
+
+.stat-grid--progress .stat-card strong {
+    font-size: clamp(1.8rem, 3vw, 2.25rem);
+}
+
+.profile-page .profile-card--progress,
+.profile-page .profile-card--theme {
+    min-height: 0;
+}
+
+.profile-page .profile-card--theme .profile-card__header,
+.profile-page .profile-card--progress .profile-card__header {
+    margin-bottom: 12px;
+}
+
 .recent-habits {
     display: grid;
     gap: 12px;
+}
+
+.focus-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.focus-summary__card {
+    padding: 14px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: linear-gradient(145deg, rgba(247, 249, 255, 0.95), rgba(238, 243, 255, 0.9));
+}
+
+.focus-summary__card span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.focus-summary__card strong {
+    display: block;
+    margin-top: 7px;
+    font-size: 1.45rem;
+    line-height: 1;
+}
+
+.profile-page .focus-summary__card strong {
+    margin-top: 5px;
+    font-size: 1.3rem;
+}
+
+.empty-state--focus strong {
+    display: block;
+    font-size: 1rem;
+}
+
+.empty-state--focus p {
+    margin: 8px 0 0;
+}
+
+.focus-empty-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.profile-page .focus-empty-tags {
+    margin-top: 10px;
+}
+
+.focus-empty-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(93, 107, 255, 0.1);
+    color: #4450b3;
+    font-size: 0.84rem;
+    font-weight: 700;
 }
 
 .activity-controls {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
+}
+
+.activity-controls input,
+.activity-controls select {
+    width: 100%;
 }
 
 .habit-row,
@@ -577,11 +1028,22 @@ body[data-theme="dark"] .btn-secondary:hover {
     background: var(--surface-strong);
 }
 
+.profile-page .habit-row,
+.profile-page .activity-row,
+.profile-page .empty-state {
+    padding: 13px 14px;
+}
+
 .habit-row {
     display: flex;
     justify-content: space-between;
     gap: 18px;
     align-items: center;
+}
+
+.profile-page .habit-row,
+.profile-page .activity-row {
+    gap: 12px;
 }
 
 .activity-list {
@@ -652,6 +1114,22 @@ body[data-theme="dark"] .habit-row__count {
     color: #b5c2ff;
 }
 
+body[data-theme="dark"] .past-activity-page .chart-donut-slice {
+    stroke: rgba(15, 22, 44, 0.88);
+}
+
+body[data-theme="dark"] .focus-summary__card {
+    background:
+        linear-gradient(145deg, rgba(26, 35, 64, 0.95), rgba(20, 28, 52, 0.92)),
+        linear-gradient(160deg, rgba(138, 162, 255, 0.06), rgba(127, 97, 255, 0.06));
+}
+
+body[data-theme="dark"] .focus-empty-tag {
+    background: rgba(138, 162, 255, 0.12);
+    border-color: rgba(138, 162, 255, 0.22);
+    color: #b5c2ff;
+}
+
 body[data-theme="dark"] .habit-inline-icon {
     background: rgba(138, 162, 255, 0.14);
     border-color: rgba(138, 162, 255, 0.22);
@@ -702,6 +1180,10 @@ body[data-theme="dark"] .activity-row__status--low-effort {
     margin: 6px 0 0;
     color: var(--text-muted);
     font-size: 0.9rem;
+}
+
+.profile-page .habit-row__meta {
+    margin-top: 4px;
 }
 
 .activity-row__note {
@@ -878,8 +1360,25 @@ body[data-theme="dark"] .cropper {
         grid-template-columns: 1fr;
     }
 
+    .profile-page .profile-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "account"
+            "progress"
+            "theme"
+            "focus"
+            "delete";
+    }
+
     .profile-card--wide {
         grid-column: auto;
+    }
+
+    .profile-page .profile-card--theme,
+    .profile-card--focus,
+    .profile-card--delete {
+        grid-column: auto;
+        grid-row: auto;
     }
 
     .profile-card__header,
@@ -895,6 +1394,14 @@ body[data-theme="dark"] .cropper {
     }
 
     .theme-picker {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-card--theme .theme-picker {
+        grid-template-columns: 1fr;
+    }
+
+    .focus-summary {
         grid-template-columns: 1fr;
     }
 
@@ -941,8 +1448,28 @@ body[data-theme="dark"] .cropper {
     }
 
     .profile-actions,
-    .stat-grid {
+    .stat-grid,
+    .past-activity-page .analytics-controls,
+    .past-activity-page .analytics-cards,
+    .past-activity-page .donut-grid {
         width: 100%;
+        grid-template-columns: 1fr;
+    }
+
+    .profile-card--compact {
+        width: 100%;
+        justify-self: stretch;
+    }
+
+    .profile-card--overview .stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-grid--progress {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-form__row {
         grid-template-columns: 1fr;
     }
 

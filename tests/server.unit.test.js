@@ -10,6 +10,7 @@ const serverFunctions = loadFunctions(
     [
         "parseCookies",
         "normalizeEmail",
+        "normalizeLoginIdentifier",
         "validatePassword",
         "normalizeHabitCategory",
         "normalizeHabitIcon",
@@ -20,7 +21,9 @@ const serverFunctions = loadFunctions(
         "parseDashboardPreferences",
         "normalizeDashboardPreferences",
         "formatDateOnly",
+        "formatSqliteDateTime",
         "getHabitLogRetentionCutoff",
+        "getHabitAutoDeleteCutoff",
         "normalizeFavoriteFlag",
         "serializeHabitTags",
         "parseStoredHabitTags",
@@ -52,6 +55,8 @@ module.exports = async function runServerUnitTests() {
     // Unit tests for the pure helper logic used by src/server.js.
     failed += Number(!(await runTest("server.js unit tests: normalizeEmail trims and lowercases addresses", () => {
         assert.equal(serverFunctions.normalizeEmail("  USER@Example.COM "), "user@example.com");
+        assert.equal(serverFunctions.normalizeLoginIdentifier("  USER@Example.COM "), "user@example.com");
+        assert.equal(serverFunctions.normalizeLoginIdentifier("  Habit.User  "), "habit.user");
     })));
 
     // Unit tests for the pure helper logic used by src/server.js.
@@ -66,6 +71,8 @@ module.exports = async function runServerUnitTests() {
 
     failed += Number(!(await runTest("server.js unit tests: habit metadata helpers normalize categories and tags", () => {
         assert.equal(serverFunctions.normalizeHabitCategory("  Deep   Work "), "Deep Work");
+        assert.equal(serverFunctions.normalizeHabitCategory(" self care "), "Self-care");
+        assert.equal(serverFunctions.normalizeHabitCategory("SELF-CARE"), "Self-care");
         assert.equal(serverFunctions.normalizeHabitIcon("DUMBBELL"), "dumbbell");
         assert.equal(serverFunctions.normalizeHabitIcon("planet"), null);
         assert.deepEqual(
@@ -118,6 +125,14 @@ module.exports = async function runServerUnitTests() {
         assert.equal(
             serverFunctions.getHabitLogRetentionCutoff("monthly", new Date("2026-04-23T12:00:00Z")),
             "2026-04-01"
+        );
+        assert.equal(
+            serverFunctions.formatSqliteDateTime(new Date("2026-04-23T12:34:56Z")),
+            "2026-04-23 12:34:56"
+        );
+        assert.equal(
+            serverFunctions.getHabitAutoDeleteCutoff(new Date("2026-04-23T12:00:00Z")),
+            "2026-03-24 12:00:00"
         );
     })));
 

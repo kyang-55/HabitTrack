@@ -3,8 +3,15 @@ const path = require("path");
 const vm = require("vm");
 
 function extractFunctionSource(source, functionName) {
-    const signature = `function ${functionName}(`;
-    const start = source.indexOf(signature);
+    const signatures = [`async function ${functionName}(`, `function ${functionName}(`];
+    let start = -1;
+
+    for (const signature of signatures) {
+        start = source.indexOf(signature);
+        if (start !== -1) {
+            break;
+        }
+    }
 
     if (start === -1) {
         throw new Error(`Could not find function "${functionName}" in source.`);

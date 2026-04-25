@@ -25,7 +25,7 @@
             </div>
 
             <div class="profile-actions">
-                <a class="btn btn-secondary" href="./index.html">Back to dashboard</a>
+                <a class="btn btn-secondary" href="./index.html">Back to Dashboard</a>
                 <a class="btn btn-secondary" href="./profile.html">Profile</a>
             </div>
         </header>
@@ -39,7 +39,7 @@
                         <p class="profile-card__eyebrow">Filters</p>
                         <h2>Retention &amp; Filters</h2>
                     </div>
-                    <p class="profile-card__copy">Set a retention window and narrow the history list by habit.</p>
+                    <p class="profile-card__copy">Choose a time range and filter by habit.</p>
                 </div>
 
                 <div class="activity-controls">
@@ -58,16 +58,80 @@
                             <option value="all">All habits</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="profile-label" for="activityCategoryFilter">Filter by category</label>
+                        <select id="activityCategoryFilter">
+                            <option value="all">All categories</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="profile-label" for="activitySearchInput">Live search</label>
+                        <input id="activitySearchInput" type="search" placeholder="Search habits, categories, dates, or status">
+                    </div>
                 </div>
             </article>
 
-            <article class="profile-card">
+            <article class="profile-card profile-card--wide activity-trends-card">
+                <div class="profile-card__header">
+                    <div>
+                        <p class="profile-card__eyebrow">Trends</p>
+                        <h2>Consistency Trends</h2>
+                    </div>
+                    <p id="chartSummaryText" class="profile-card__copy">See how often you are showing up in this saved history view.</p>
+                </div>
+
+                <div class="analytics-controls">
+                    <select id="chartMetricFilter" aria-label="Choose a chart metric">
+                        <option value="completed">Logged habits per day</option>
+                        <option value="rate">Daily consistency rate</option>
+                        <option value="cumulative">Cumulative logged days</option>
+                    </select>
+                    <select id="chartTypeFilter" aria-label="Choose a chart type">
+                        <option value="line" selected>Line chart</option>
+                        <option value="bar">Bar chart</option>
+                    </select>
+                </div>
+
+                <div id="chartSummaryCards" class="analytics-cards"></div>
+                <div class="chart-stage">
+                    <div class="chart-stage__copy">
+                        <h3 id="chartTitle">Logged Habits Per Day</h3>
+                        <p id="chartDescription" class="chart-description">Track how many retained habit logs appear on each day in the selected view.</p>
+                    </div>
+                    <div id="chartCanvas" class="chart-canvas" role="img" aria-live="polite" aria-label="Habit consistency chart"></div>
+                </div>
+
+                <div class="chart-stage chart-stage--dual-donut">
+                    <div class="chart-stage__copy chart-stage__copy--full">
+                        <h3>Breakdowns</h3>
+                        <p class="chart-description">See how your visible activity splits by category and how your latest streak compares with your best streak in this view.</p>
+                    </div>
+                    <div class="donut-grid">
+                        <div class="donut-panel">
+                            <div class="chart-stage__copy">
+                                <h3 id="categoryChartTitle">Category Breakdown</h3>
+                                <p id="categoryChartDescription" class="chart-description">See what share of your retained logs belongs to each category in this view.</p>
+                            </div>
+                            <div id="categoryChartCanvas" class="chart-canvas chart-canvas--donut" role="img" aria-live="polite" aria-label="Habit category breakdown chart"></div>
+                        </div>
+                        <div class="donut-panel">
+                            <div class="chart-stage__copy">
+                                <h3 id="streakChartTitle">Streak Progress</h3>
+                                <p id="streakChartDescription" class="chart-description">Compare your latest visible streak with your strongest streak in this filtered history.</p>
+                            </div>
+                            <div id="streakChartCanvas" class="chart-canvas chart-canvas--donut" role="img" aria-live="polite" aria-label="Habit streak progress chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="profile-card profile-card--compact profile-card--overview">
                 <div class="profile-card__header">
                     <div>
                         <p class="profile-card__eyebrow">Summary</p>
                         <h2>Saved Overview</h2>
                     </div>
-                    <p class="profile-card__copy">Current totals for the activity still retained under your selected window.</p>
+                    <p class="profile-card__copy">Totals for your selected time range.</p>
                 </div>
 
                 <div class="stat-grid">
@@ -90,7 +154,7 @@
                 </div>
             </article>
 
-            <article class="profile-card profile-card--wide">
+            <article class="profile-card">
                 <div class="profile-card__header">
                     <div>
                         <p class="profile-card__eyebrow">Timeline</p>

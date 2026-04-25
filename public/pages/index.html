@@ -53,12 +53,6 @@
 
         <div id="feedback" class="feedback-message" role="status" aria-live="polite"></div>
 
-        <div id="habitsHeader" class="section-header section-header--tight hidden">
-            <div>
-                <h2>Your Habits</h2>
-                <p>Track what is active, what is slipping, and what is compounding.</p>
-            </div>
-        </div>
         <section id="habitControls" class="filters-panel hidden">
             <div class="filters-panel__top">
                 <div>
@@ -66,6 +60,8 @@
                     <p id="habitFilterSummary" class="filters-summary">Showing all habits.</p>
                 </div>
                 <div class="filters-panel__actions">
+                    <button id="completeSelectedHabits" class="btn btn-primary" type="button" disabled>Complete selected</button>
+                    <button id="clearHabitSelection" class="btn btn-secondary" type="button" disabled>Clear selection</button>
                     <button id="completeAllHabits" class="btn btn-primary" type="button">Complete all today</button>
                     <button id="clearHabitFilters" class="btn btn-secondary" type="button">Clear filters</button>
                 </div>
@@ -91,57 +87,32 @@
                     <option value="checkins-desc">Most check-ins</option>
                 </select>
             </div>
-            <p class="panel-note">Your filter and chart preferences save automatically.</p>
         </section>
-        <section id="progressPanel" class="analytics-panel hidden">
-            <div class="analytics-panel__top">
-                <div>
-                    <h3>Consistency Trends</h3>
-                    <p id="chartSummaryText" class="filters-summary">See how often you are showing up over time.</p>
-                </div>
+        <div id="habitsHeader" class="section-header section-header--tight hidden">
+            <div>
+                <h2>Your Habits</h2>
+                <p>Track what is active, what is slipping, and what is compounding.</p>
             </div>
-            <div class="analytics-controls">
-                <select id="chartHabitFilter" aria-label="Choose a habit to chart">
-                    <option value="all">All habits</option>
-                </select>
-                <select id="chartRangeFilter" aria-label="Choose a chart time range">
-                    <option value="7">Last 7 days</option>
-                    <option value="30" selected>Last 30 days</option>
-                    <option value="90">Last 90 days</option>
-                </select>
-                <select id="chartMetricFilter" aria-label="Choose a chart metric">
-                    <option value="completed">Logged habits per day</option>
-                    <option value="rate">Daily consistency rate</option>
-                    <option value="cumulative">Cumulative logged days</option>
-                </select>
-                <select id="chartTypeFilter" aria-label="Choose a chart type">
-                    <option value="line" selected>Line chart</option>
-                    <option value="bar">Bar chart</option>
-                </select>
-            </div>
-            <div id="chartSummaryCards" class="analytics-cards"></div>
-            <div class="chart-stage">
-                <div class="chart-stage__copy">
-                    <h4 id="chartTitle">Logged Habits Per Day</h4>
-                    <p id="chartDescription" class="chart-description">Track how many of your selected habits had either a full completion or a low-effort save on each day in the chosen range.</p>
-                </div>
-                <div id="chartCanvas" class="chart-canvas" role="img" aria-live="polite" aria-label="Habit consistency chart"></div>
-            </div>
-        </section>
+            <button id="toggleHabitListVisibility" class="btn btn-secondary" type="button" aria-expanded="true" aria-controls="habitList">Collapse list</button>
+        </div>
+        <section id="habitList" class="habit-list hidden"></section>
+        <div id="noHabitsEmptyState" class="empty-state hidden">No habits yet. Add one to get started.</div>
         <section id="suggestionsPanel" class="suggestions-panel hidden">
             <div class="suggestions-panel__top">
                 <div>
-                    <h3>Suggested Next Steps</h3>
+                    <h3>Recommended Habits</h3>
                     <p class="filters-summary">Personalized ideas to strengthen your routine, plus some playful options for lower-pressure days.</p>
                 </div>
+                <button id="toggleRecommendationsPanel" class="btn btn-secondary" type="button" aria-expanded="true" aria-controls="recommendationsContent">Collapse</button>
             </div>
-            <div class="suggestions-grid">
+            <div id="recommendationsContent" class="suggestions-grid">
                 <div class="suggestion-column">
                     <div class="suggestion-column__top">
                         <div>
                             <h4>Based on Your Activity</h4>
                             <p class="suggestion-column__copy">Ideas shaped by your consistency, categories, and low-effort patterns.</p>
                         </div>
+                        <button id="togglePersonalizedSuggestions" class="btn btn-secondary" type="button" aria-expanded="true" aria-controls="personalizedSuggestions">Collapse</button>
                     </div>
                     <div id="personalizedSuggestions" class="suggestion-list"></div>
                 </div>
@@ -151,13 +122,13 @@
                             <h4>Fun, Low-Pressure Ideas</h4>
                             <p class="suggestion-column__copy">Gentle habits that keep things light and enjoyable.</p>
                         </div>
+                        <button id="toggleFunSuggestions" class="btn btn-secondary" type="button" aria-expanded="true" aria-controls="funSuggestions">Collapse</button>
                         <button id="shuffleFunSuggestions" class="btn btn-secondary" type="button">Shuffle ideas</button>
                     </div>
                     <div id="funSuggestions" class="suggestion-list"></div>
                 </div>
             </div>
         </section>
-        <section id="habitList" class="habit-list hidden"></section>
         <section id="adminPanel" class="admin-panel hidden"></section>
     </main>
 

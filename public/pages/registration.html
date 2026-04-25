@@ -17,8 +17,16 @@
             <p class="auth-copy">Start tracking habits with a personal dashboard that belongs only to you. We will send a Firebase verification email before your first sign-in.</p>
 
             <form id="registerForm" class="auth-form">
-                <label class="auth-label" for="name">Name</label>
-                <input id="name" name="name" type="text" autocomplete="name" maxlength="80" required>
+                <div class="auth-form__row">
+                    <div>
+                        <label class="auth-label" for="firstName">First name</label>
+                        <input id="firstName" name="firstName" type="text" autocomplete="given-name" maxlength="40" required>
+                    </div>
+                    <div>
+                        <label class="auth-label" for="lastName">Last name</label>
+                        <input id="lastName" name="lastName" type="text" autocomplete="family-name" maxlength="40">
+                    </div>
+                </div>
 
                 <label class="auth-label" for="email">Email</label>
                 <input id="email" name="email" type="email" autocomplete="email" required>

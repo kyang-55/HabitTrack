@@ -5,6 +5,8 @@ const DEFAULT_THEME_PREFERENCE = "light";
 let currentUser = null;
 let habitDirectory = [];
 let isHabitListExpanded = false;
+let isHabitListCollapsed = false;
+const selectedHabitIds = new Set();
 
 const defaultHabitViewState = {
     search: "",
@@ -256,7 +258,32 @@ function escapeHtml(value) {
 
 function normalizeHabitCategory(value) {
     const normalized = String(value ?? "").trim().replace(/\s+/g, " ");
-    return normalized ? normalized.slice(0, 60) : "";
+    if (!normalized) {
+        return "";
+    }
+
+    const canonicalCategoryMap = {
+        health: "Health",
+        fitness: "Fitness",
+        nutrition: "Nutrition",
+        sleep: "Sleep",
+        mindfulness: "Mindfulness",
+        learning: "Learning",
+        work: "Work",
+        productivity: "Productivity",
+        "self-care": "Self-care",
+        selfcare: "Self-care",
+        finance: "Finance",
+        relationships: "Relationships",
+        home: "Home"
+    };
+    const canonicalKey = normalized.toLowerCase().replace(/\s*-\s*/g, "-").replace(/\s+/g, "");
+
+    if (canonicalCategoryMap[canonicalKey]) {
+        return canonicalCategoryMap[canonicalKey];
+    }
+
+    return normalized.slice(0, 60);
 }
 
 function normalizeHabitTags(value) {
@@ -304,54 +331,144 @@ function getExistingHabitNameSet(habits) {
 function getCategorySuggestionTemplates() {
     return {
         Health: [
-            { name: "Drink water before coffee", description: "Start with one glass of water before your first caffeinated drink.", category: "Health" },
-            { name: "Two-minute posture reset", description: "Unclench your shoulders, stretch tall, and reset your posture for two minutes.", category: "Health" }
+            { name: "Drink water before coffee", description: "Start with one glass of water before your first caffeinated drink.", category: "Health", tags: ["health", "hydration"] },
+            { name: "Two-minute posture reset", description: "Unclench your shoulders, stretch tall, and reset your posture for two minutes.", category: "Health", tags: ["health", "posture"] }
         ],
         Fitness: [
-            { name: "Walk for one song", description: "Take a quick walk for the length of one favorite song.", category: "Fitness" },
-            { name: "Five pushups and done", description: "Keep it tiny so movement still feels approachable on busy days.", category: "Fitness" }
+            { name: "Walk for one song", description: "Take a quick walk for the length of one favorite song.", category: "Fitness", tags: ["fitness", "movement"] },
+            { name: "Five pushups and done", description: "Keep it tiny so movement still feels approachable on busy days.", category: "Fitness", tags: ["fitness", "strength"] }
         ],
         Nutrition: [
-            { name: "Add one colorful food", description: "Work one fruit or vegetable into a meal without overthinking the rest.", category: "Nutrition" },
-            { name: "Prep tomorrow's snack", description: "Set up one easy snack now to make tomorrow simpler.", category: "Nutrition" }
+            { name: "Add one colorful food", description: "Work one fruit or vegetable into a meal without overthinking the rest.", category: "Nutrition", tags: ["nutrition", "food"] },
+            { name: "Prep tomorrow's snack", description: "Set up one easy snack now to make tomorrow simpler.", category: "Nutrition", tags: ["nutrition", "snack"] }
         ],
         Sleep: [
-            { name: "Phone down 15 minutes earlier", description: "Give yourself a small buffer before bed instead of aiming for a perfect routine.", category: "Sleep" },
-            { name: "Three-breath wind-down", description: "Pause for three slow breaths as a gentle cue that the day is ending.", category: "Sleep" }
+            { name: "Phone down 15 minutes earlier", description: "Give yourself a small buffer before bed instead of aiming for a perfect routine.", category: "Sleep", tags: ["sleep", "wind-down"] },
+            { name: "Three-breath wind-down", description: "Pause for three slow breaths as a gentle cue that the day is ending.", category: "Sleep", tags: ["sleep", "breathing"] }
         ],
         Mindfulness: [
-            { name: "Name one good thing", description: "Write or say one thing that felt steady, kind, or useful today.", category: "Mindfulness" },
-            { name: "One-minute breathing check-in", description: "Take sixty quiet seconds to slow down and notice how you feel.", category: "Mindfulness" }
+            { name: "Name one good thing", description: "Write or say one thing that felt steady, kind, or useful today.", category: "Mindfulness", tags: ["mindfulness", "gratitude"] },
+            { name: "One-minute breathing check-in", description: "Take sixty quiet seconds to slow down and notice how you feel.", category: "Mindfulness", tags: ["mindfulness", "breathing"] }
         ],
         Learning: [
-            { name: "Read one page", description: "Keep your learning streak alive with just a single page.", category: "Learning" },
-            { name: "Save one useful note", description: "Capture one idea worth remembering from something you read or watched.", category: "Learning" }
+            { name: "Read one page", description: "Keep your learning streak alive with just a single page.", category: "Learning", tags: ["learning", "reading"] },
+            { name: "Save one useful note", description: "Capture one idea worth remembering from something you read or watched.", category: "Learning", tags: ["learning", "notes"] }
         ],
         Work: [
-            { name: "Open the task for 2 minutes", description: "Reduce the friction by just opening the work and starting tiny.", category: "Work" },
-            { name: "Clear one small task", description: "Choose one low-resistance task and finish it cleanly.", category: "Work" }
+            { name: "Open the task for 2 minutes", description: "Reduce the friction by just opening the work and starting tiny.", category: "Work", tags: ["work", "focus"] },
+            { name: "Clear one small task", description: "Choose one low-resistance task and finish it cleanly.", category: "Work", tags: ["work", "tasks"] }
         ],
         Productivity: [
-            { name: "Plan your next 3 steps", description: "List only the next three actions instead of mapping the whole day.", category: "Productivity" },
-            { name: "Reset one surface", description: "Clear one desk, counter, or table to reduce mental clutter.", category: "Productivity" }
+            { name: "Plan your next 3 steps", description: "List only the next three actions instead of mapping the whole day.", category: "Productivity", tags: ["productivity", "planning"] },
+            { name: "Reset one surface", description: "Clear one desk, counter, or table to reduce mental clutter.", category: "Productivity", tags: ["productivity", "reset"] }
         ],
         "Self-care": [
-            { name: "Kind five-minute reset", description: "Do one calming thing that makes the next hour easier.", category: "Self-care" },
-            { name: "Stretch and unclench", description: "Loosen your jaw, shoulders, and back for a few quiet minutes.", category: "Self-care" }
+            { name: "Kind five-minute reset", description: "Do one calming thing that makes the next hour easier.", category: "Self-care", tags: ["self-care", "reset"] },
+            { name: "Stretch and unclench", description: "Loosen your jaw, shoulders, and back for a few quiet minutes.", category: "Self-care", tags: ["self-care", "relax"] }
         ],
         Finance: [
-            { name: "Check one transaction", description: "Stay lightly aware of your money by reviewing just one purchase.", category: "Finance" },
-            { name: "Move $1 to savings", description: "Make progress tiny enough that it always feels doable.", category: "Finance" }
+            { name: "Check one transaction", description: "Stay lightly aware of your money by reviewing just one purchase.", category: "Finance", tags: ["finance", "money"] },
+            { name: "Move $1 to savings", description: "Make progress tiny enough that it always feels doable.", category: "Finance", tags: ["finance", "savings"] }
         ],
         Relationships: [
-            { name: "Send one warm message", description: "Reach out with a quick check-in or thank-you text.", category: "Relationships" },
-            { name: "Share one appreciation", description: "Say one specific thing you appreciate about someone close to you.", category: "Relationships" }
+            { name: "Send one warm message", description: "Reach out with a quick check-in or thank-you text.", category: "Relationships", tags: ["relationships", "connection"] },
+            { name: "Share one appreciation", description: "Say one specific thing you appreciate about someone close to you.", category: "Relationships", tags: ["relationships", "gratitude"] }
         ],
         Home: [
-            { name: "Tidy one hotspot", description: "Pick the one messy surface that will make the room feel easier.", category: "Home" },
-            { name: "Set out tomorrow's essentials", description: "Make the next morning smoother with a tiny prep ritual.", category: "Home" }
+            { name: "Tidy one hotspot", description: "Pick the one messy surface that will make the room feel easier.", category: "Home", tags: ["home", "tidy"] },
+            { name: "Set out tomorrow's essentials", description: "Make the next morning smoother with a tiny prep ritual.", category: "Home", tags: ["home", "prep"] }
         ]
     };
+}
+
+function normalizeSuggestionTheme(value) {
+    const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+    if (!normalized) {
+        return "";
+    }
+
+    const themeMap = {
+        health: "Health",
+        fitness: "Fitness",
+        nutrition: "Nutrition",
+        sleep: "Sleep",
+        mindfulness: "Mindfulness",
+        mindfullness: "Mindfulness",
+        learning: "Learning",
+        work: "Work",
+        productivity: "Productivity",
+        "self-care": "Self-care",
+        "self care": "Self-care",
+        selfcare: "Self-care",
+        finance: "Finance",
+        relationship: "Relationships",
+        relationships: "Relationships",
+        home: "Home"
+    };
+
+    return themeMap[normalized] || "";
+}
+
+function inferSuggestionThemesFromText(value) {
+    const normalized = String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ");
+
+    if (!normalized) {
+        return [];
+    }
+
+    const keywordMatchers = [
+        { theme: "Health", keywords: ["health", "hydrate", "hydration", "water", "posture", "wellness"] },
+        { theme: "Fitness", keywords: ["fitness", "cardio", "run", "running", "walk", "walking", "workout", "exercise", "stretch", "strength", "movement"] },
+        { theme: "Nutrition", keywords: ["nutrition", "meal", "food", "snack", "protein", "fruit", "vegetable", "diet"] },
+        { theme: "Sleep", keywords: ["sleep", "bed", "bedtime", "rest", "wind down", "wind-down"] },
+        { theme: "Mindfulness", keywords: ["mindful", "mindfulness", "meditate", "meditation", "journal", "journaling", "gratitude", "breathe", "breathing", "calm"] },
+        { theme: "Learning", keywords: ["learn", "learning", "study", "reading", "read", "book", "books", "course", "lesson", "notes"] },
+        { theme: "Work", keywords: ["work", "career", "job", "office", "project", "client"] },
+        { theme: "Productivity", keywords: ["focus", "planning", "plan", "tasks", "task", "routine", "organize", "organise", "productivity", "deep work"] },
+        { theme: "Self-care", keywords: ["self care", "self-care", "relax", "reset", "skincare", "kindness"] },
+        { theme: "Finance", keywords: ["finance", "money", "budget", "save", "saving", "savings", "debt", "spend", "spending"] },
+        { theme: "Relationships", keywords: ["relationship", "relationships", "friend", "family", "partner", "social", "connect", "connection"] },
+        { theme: "Home", keywords: ["home", "house", "room", "kitchen", "laundry", "clean", "cleaning", "tidy", "chores"] }
+    ];
+
+    return keywordMatchers
+        .filter(({ keywords }) => keywords.some((keyword) => normalized.includes(keyword)))
+        .map(({ theme }) => theme);
+}
+
+function getHabitSuggestionThemes(habit) {
+    const directThemes = [
+        normalizeSuggestionTheme(habit?.category),
+        ...inferSuggestionThemesFromText(habit?.category)
+    ];
+    const tagThemes = Array.isArray(habit?.tags)
+        ? habit.tags.flatMap((tag) => [
+            normalizeSuggestionTheme(tag),
+            ...inferSuggestionThemesFromText(tag)
+        ])
+        : [];
+
+    return [...new Set([...directThemes, ...tagThemes].filter(Boolean))];
+}
+
+function rankSuggestionThemes(habits) {
+    const themeScores = new Map();
+
+    (Array.isArray(habits) ? habits : []).forEach((habit) => {
+        const uniqueThemes = getHabitSuggestionThemes(habit);
+        const weight = 1
+            + Number(habit?.stats?.completionRate30 || 0) / 100
+            + Number(habit?.stats?.totalCompletions || 0) / 10;
+
+        uniqueThemes.forEach((theme) => {
+            themeScores.set(theme, Number(themeScores.get(theme) || 0) + weight);
+        });
+    });
+
+    return [...themeScores.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([theme]) => theme);
 }
 
 function getFunSuggestionCatalog() {
@@ -395,6 +512,7 @@ function buildPersonalizedSuggestions(habits) {
     const existingNames = getExistingHabitNameSet(items);
     const templates = getCategorySuggestionTemplates();
     const candidates = [];
+    const categoryOrder = Object.keys(templates);
 
     if (items.length === 0) {
         return pickUnusedSuggestions([
@@ -402,18 +520,21 @@ function buildPersonalizedSuggestions(habits) {
                 name: "Two-minute morning reset",
                 description: "Start with one tiny anchor habit that feels almost too easy to skip.",
                 category: "Self-care",
+                tags: ["self-care", "beginner"],
                 reason: "A very small first habit makes it easier to build confidence and momentum."
             },
             {
                 name: "Drink water after waking",
                 description: "A quick, clear habit that fits into most routines without much friction.",
                 category: "Health",
+                tags: ["health", "hydration"],
                 reason: "Simple habits are often the easiest way to establish a dependable rhythm."
             },
             {
                 name: "Write tomorrow's top task",
                 description: "End the day by deciding the next tiny thing you will do.",
                 category: "Productivity",
+                tags: ["productivity", "planning"],
                 reason: "Reducing tomorrow's ambiguity makes showing up feel lighter."
             }
         ], existingNames, 3);
@@ -431,29 +552,59 @@ function buildPersonalizedSuggestions(habits) {
     ))[0];
 
     const staleHabit = items.find((habit) => Number(habit?.stats?.totalCompletions || 0) > 0 && Number(habit?.stats?.currentStreak || 0) === 0);
-    const topCategory = [...items]
-        .filter((habit) => habit?.category)
-        .sort((a, b) => {
-            const rateDiff = Number(b?.stats?.completionRate30 || 0) - Number(a?.stats?.completionRate30 || 0);
-            if (rateDiff !== 0) return rateDiff;
+    const preferredThemes = rankSuggestionThemes(items);
+    const strongestTheme = strongestHabit
+        ? getHabitSuggestionThemes(strongestHabit)[0]
+        : "";
+    const primaryThemes = preferredThemes.length
+        ? preferredThemes
+        : [strongestTheme || "Productivity", "Self-care", "Health"];
+    const rankedThemeOrder = [
+        ...primaryThemes,
+        ...categoryOrder.filter((theme) => !primaryThemes.includes(theme))
+    ];
 
-            return Number(b?.stats?.totalCompletions || 0) - Number(a?.stats?.totalCompletions || 0);
-        })[0]?.category || "";
+    rankedThemeOrder.forEach((theme) => {
+        if (!Array.isArray(templates[theme])) {
+            return;
+        }
 
-    if (topCategory && Array.isArray(templates[topCategory])) {
-        templates[topCategory].forEach((template) => {
+        const themeTemplates = templates[theme];
+        const reason = preferredThemes.includes(theme)
+            ? `You already gravitate toward ${theme.toLowerCase()} habits and tags, so this is a natural place to keep building momentum.`
+            : `This adds a fresh ${theme.toLowerCase()} option so your recommended habits stay balanced instead of repeating the same lane.`;
+
+        if (themeTemplates[0]) {
+            candidates.push({
+                ...themeTemplates[0],
+                reason
+            });
+        }
+    });
+
+    rankedThemeOrder.forEach((theme) => {
+        if (!Array.isArray(templates[theme]) || templates[theme].length < 2) {
+            return;
+        }
+
+        templates[theme].slice(1).forEach((template) => {
             candidates.push({
                 ...template,
-                reason: `You tend to stay most consistent with ${topCategory.toLowerCase()} habits, so this is a strong place to grow your routine.`
+                reason: `You have room for another small ${theme.toLowerCase()} habit if you want a second option in that area.`
             });
         });
-    }
+    });
 
     if (lowEffortHabit && Number(lowEffortHabit?.stats?.lowEffortDays || 0) > 0) {
         candidates.push({
             name: `2-minute ${lowEffortHabit.name}`,
             description: `A gentler version of ${lowEffortHabit.name} for days when energy is low but you still want to keep the rhythm.`,
             category: lowEffortHabit.category || "Self-care",
+            tags: normalizeHabitTags([
+                ...(Array.isArray(lowEffortHabit.tags) ? lowEffortHabit.tags : []),
+                lowEffortHabit.category || "Self-care",
+                "low effort"
+            ]),
             reason: `You have used low-effort days with ${lowEffortHabit.name}, which suggests smaller versions may help you stay consistent.`
         });
     }
@@ -463,15 +614,27 @@ function buildPersonalizedSuggestions(habits) {
             name: `Restart ${staleHabit.name} softly`,
             description: `Bring ${staleHabit.name} back in a lighter, easier form that feels less intimidating.`,
             category: staleHabit.category || "Self-care",
+            tags: normalizeHabitTags([
+                ...(Array.isArray(staleHabit.tags) ? staleHabit.tags : []),
+                staleHabit.category || "Self-care",
+                "restart"
+            ]),
             reason: `${staleHabit.name} has past momentum, so a softer restart could help you reconnect without pressure.`
         });
     }
 
     if (strongestHabit) {
+        const strongestHabitTheme = strongestTheme || preferredThemes[0] || "Productivity";
+
         candidates.push({
             name: `One-minute follow-up to ${strongestHabit.name}`,
             description: `Attach a tiny companion habit right after ${strongestHabit.name} to build on momentum you already have.`,
-            category: strongestHabit.category || topCategory || "Productivity",
+            category: strongestHabitTheme,
+            tags: normalizeHabitTags([
+                ...(Array.isArray(strongestHabit.tags) ? strongestHabit.tags : []),
+                strongestHabitTheme,
+                "habit stack"
+            ]),
             reason: `${strongestHabit.name} already has some traction, so stacking a tiny next step can make the routine feel natural.`
         });
     }
@@ -499,6 +662,27 @@ function normalizeHabitRecord(habit) {
         icon: normalizeHabitIcon(habit?.icon),
         tags: normalizeHabitTags(habit?.tags),
         isFavorite: normalizeFavoriteFlag(habit?.isFavorite)
+    };
+}
+
+function createLocalHabitEntry(habit) {
+    const normalizedHabit = normalizeHabitRecord(habit);
+
+    return {
+        ...normalizedHabit,
+        logs: Array.isArray(normalizedHabit.logs) ? normalizedHabit.logs : [],
+        logSet: normalizedHabit.logSet instanceof Set ? normalizedHabit.logSet : new Set(),
+        stats: normalizedHabit.stats && typeof normalizedHabit.stats === "object"
+            ? normalizedHabit.stats
+            : {
+                currentStreak: 0,
+                longestStreak: 0,
+                totalCompletions: 0,
+                completionRate30: 0,
+                lowEffortDays: 0,
+                fullDays: 0,
+                calendarHtml: ""
+            }
     };
 }
 
@@ -790,7 +974,7 @@ function renderAccountPanel() {
 
     if (currentUser) {
         welcomeMessage.textContent = `Signed in as ${currentUser.name}`;
-        roleMessage.textContent = `Role: ${currentUser.role}`;
+        roleMessage.textContent = "";
         registerButton.classList.add("hidden");
         loginButton.classList.add("hidden");
         profileButton.classList.remove("hidden");
@@ -1125,7 +1309,10 @@ function buildChartSvg(series, chartType = "line") {
 
     const width = 960;
     const height = 320;
-    const padding = { top: 20, right: 18, bottom: 44, left: 50 };
+    const padding = { top: 20, right: 18, bottom: 56, left: 58 };
+    const plotTop = padding.top;
+    const plotRight = width - padding.right;
+    const plotBottom = height - padding.bottom;
     const plotWidth = width - padding.left - padding.right;
     const plotHeight = height - padding.top - padding.bottom;
     const rawMax = Math.max(...points.map((point) => Number(point?.value || 0)), 0);
@@ -1134,12 +1321,16 @@ function buildChartSvg(series, chartType = "line") {
         : Math.max(1, Math.ceil(rawMax / 5) * 5 || 1);
     const tickCount = 4;
     const xStep = points.length > 1 ? plotWidth / (points.length - 1) : plotWidth / 2;
-    const barWidth = Math.max(10, Math.min(28, plotWidth / Math.max(points.length * 1.6, 1)));
+    const barSlotWidth = plotWidth / Math.max(points.length, 1);
+    const barInset = Math.min(10, Math.max(4, barSlotWidth * 0.18));
+    const barWidth = Math.max(8, Math.min(18, barSlotWidth - (barInset * 2)));
     const linePoints = points.map((point, index) => {
-        const x = points.length === 1
-            ? padding.left + (plotWidth / 2)
-            : padding.left + (index * xStep);
-        const y = padding.top + plotHeight - ((Number(point?.value || 0) / maxValue) * plotHeight);
+        const x = chartType === "bar"
+            ? padding.left + (barSlotWidth * index) + (barSlotWidth / 2)
+            : points.length === 1
+                ? padding.left + (plotWidth / 2)
+                : padding.left + (index * xStep);
+        const y = plotTop + plotHeight - ((Number(point?.value || 0) / maxValue) * plotHeight);
         return {
             ...point,
             x,
@@ -1150,10 +1341,10 @@ function buildChartSvg(series, chartType = "line") {
     const gridLines = Array.from({ length: tickCount + 1 }, (_, index) => {
         const ratio = index / tickCount;
         const value = Math.round(maxValue - (ratio * maxValue));
-        const y = padding.top + (ratio * plotHeight);
+        const y = plotTop + (ratio * plotHeight);
 
         return `
-            <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" class="chart-grid-line"></line>
+            <line x1="${padding.left}" y1="${y}" x2="${plotRight}" y2="${y}" class="chart-grid-line"></line>
             <text x="${padding.left - 10}" y="${y + 4}" text-anchor="end" class="chart-axis-label">${escapeHtml(formatMetricValue(value, series.metric))}</text>
         `;
     }).join("");
@@ -1167,13 +1358,13 @@ function buildChartSvg(series, chartType = "line") {
     const xLabels = linePoints
         .filter((_, index) => xLabelIndexes.has(index))
         .map((point) => `
-            <text x="${point.x}" y="${height - 14}" text-anchor="middle" class="chart-axis-label">${escapeHtml(point.label)}</text>
+            <text x="${point.x}" y="${height - 18}" text-anchor="middle" class="chart-axis-label">${escapeHtml(point.label)}</text>
         `)
         .join("");
 
     const bars = chartType === "bar"
         ? linePoints.map((point) => {
-            const barHeight = height - padding.bottom - point.y;
+            const barHeight = plotBottom - point.y;
             const x = point.x - (barWidth / 2);
             return `
                 <rect x="${x}" y="${point.y}" width="${barWidth}" height="${Math.max(barHeight, 0)}" rx="8" class="chart-bar">
@@ -1187,7 +1378,7 @@ function buildChartSvg(series, chartType = "line") {
         ? linePoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ")
         : "";
     const areaPath = chartType === "line"
-        ? `${linePath} L ${linePoints[linePoints.length - 1].x} ${height - padding.bottom} L ${linePoints[0].x} ${height - padding.bottom} Z`
+        ? `${linePath} L ${linePoints[linePoints.length - 1].x} ${plotBottom} L ${linePoints[0].x} ${plotBottom} Z`
         : "";
     const dots = chartType === "line"
         ? linePoints.map((point) => `
@@ -1204,13 +1395,18 @@ function buildChartSvg(series, chartType = "line") {
                     <stop offset="0%" stop-color="rgba(93, 107, 255, 0.34)"></stop>
                     <stop offset="100%" stop-color="rgba(93, 107, 255, 0.02)"></stop>
                 </linearGradient>
+                <clipPath id="chartPlotAreaClip">
+                    <rect x="${padding.left}" y="${plotTop}" width="${plotWidth}" height="${plotHeight}"></rect>
+                </clipPath>
             </defs>
             ${gridLines}
-            <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" class="chart-axis-line"></line>
-            ${chartType === "line" ? `<path d="${areaPath}" class="chart-area"></path>` : ""}
-            ${chartType === "line" ? `<path d="${linePath}" class="chart-line"></path>` : ""}
-            ${bars}
-            ${dots}
+            <line x1="${padding.left}" y1="${plotBottom}" x2="${plotRight}" y2="${plotBottom}" class="chart-axis-line"></line>
+            <g clip-path="url(#chartPlotAreaClip)">
+                ${chartType === "line" ? `<path d="${areaPath}" class="chart-area"></path>` : ""}
+                ${chartType === "line" ? `<path d="${linePath}" class="chart-line"></path>` : ""}
+                ${bars}
+                ${dots}
+            </g>
             ${xLabels}
         </svg>
     `;
@@ -1247,6 +1443,7 @@ function renderHabitCard(habit) {
             : "Complete";
     const lowEffortButtonLabel = isLowEffortToday ? "Low-effort saved" : "Low-effort day";
     const canUndoToday = stats.doneToday;
+    const isSelected = selectedHabitIds.has(Number(habit.id));
     const streakProtectionNote = isLowEffortToday
         ? '<p class="habit-protection-note">Protected by a low-effort day, so your streak stays intact.</p>'
         : "";
@@ -1265,6 +1462,16 @@ function renderHabitCard(habit) {
 
     div.innerHTML = `
         <div class="habit-top">
+            <label class="habit-select" for="habitSelect-${habit.id}">
+                <input
+                    id="habitSelect-${habit.id}"
+                    type="checkbox"
+                    data-habit-select
+                    data-habit-id="${habit.id}"
+                    ${isSelected ? "checked" : ""}
+                    aria-label="Select ${escapeHtml(habit.name)} for batch completion"
+                >
+            </label>
             <div class="habit-info">
                 <div class="habit-title-row">
                     ${renderHabitIcon(derivedIconKey, habit.name)}
@@ -1280,42 +1487,135 @@ function renderHabitCard(habit) {
                 </div>
                 ${streakProtectionNote}
             </div>
-            <div class="habit-actions">
-                <button
-                    class="btn btn-favorite${habit.isFavorite ? " btn-favorite--active" : ""}"
-                    type="button"
-                    aria-pressed="${habit.isFavorite ? "true" : "false"}"
-                    aria-label="${habit.isFavorite ? "Unstar habit" : "Star habit"}"
-                    onclick="toggleFavoriteHabit(${habit.id}, ${habit.isFavorite ? "false" : "true"})"
-                >
-                    ${habit.isFavorite ? "★ Starred" : "☆ Star"}
-                </button>
-                <button class="btn btn-log" onclick="logHabit(${habit.id}, 'full')" ${isDoneToday ? "disabled" : ""}>
-                    ${logButtonLabel}
-                </button>
-                <button class="btn btn-low-effort" onclick="logHabit(${habit.id}, 'low_effort')" ${(isDoneToday || isLowEffortToday) ? "disabled" : ""}>
-                    ${lowEffortButtonLabel}
-                </button>
-                <button class="btn btn-undo" onclick="undoHabitLog(${habit.id})" ${canUndoToday ? "" : "disabled"}>
-                    Undo
-                </button>
-                <button class="btn btn-edit" onclick="editHabit(${habit.id})">Edit</button>
-                <button class="btn btn-delete" onclick="deleteHabit(${habit.id})">Delete</button>
+            <div class="habit-action-panel">
+                <div class="habit-actions">
+                    <button
+                        class="btn btn-favorite${habit.isFavorite ? " btn-favorite--active" : ""}"
+                        type="button"
+                        aria-pressed="${habit.isFavorite ? "true" : "false"}"
+                        aria-label="${habit.isFavorite ? "Unstar habit" : "Star habit"}"
+                        onclick="toggleFavoriteHabit(${habit.id}, ${habit.isFavorite ? "false" : "true"})"
+                    >
+                        ${habit.isFavorite ? "&#9733; Starred" : "&#9734; Star"}
+                    </button>
+                    <button class="btn btn-log" onclick="logHabit(${habit.id}, 'full')" ${isDoneToday ? "disabled" : ""}>
+                        ${logButtonLabel}
+                    </button>
+                    <button class="btn btn-low-effort" onclick="logHabit(${habit.id}, 'low_effort')" ${(isDoneToday || isLowEffortToday) ? "disabled" : ""}>
+                        ${lowEffortButtonLabel}
+                    </button>
+                    <button class="btn btn-undo" onclick="undoHabitLog(${habit.id})" ${canUndoToday ? "" : "disabled"}>
+                        Undo
+                    </button>
+                    <button class="btn btn-edit" onclick="editHabit(${habit.id})">Edit</button>
+                    <button class="btn btn-delete" onclick="deleteHabit(${habit.id})">Delete</button>
+                </div>
+                <div class="habit-details-action">
+                    <button class="habit-meta-pill habit-meta-pill--details" type="button" aria-expanded="false" aria-controls="habitDetails-${habit.id}" data-habit-details-toggle>
+                        Details
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="habit-stats">
-            <div class="stat-chip"><span>Current streak</span><strong>${stats.currentStreak}d</strong></div>
-            <div class="stat-chip"><span>Best streak</span><strong>${stats.longestStreak}d</strong></div>
-            <div class="stat-chip"><span>Last 7 days</span><strong>${stats.completionRate7}%</strong></div>
-            <div class="stat-chip"><span>Last 30 days</span><strong>${stats.completionRate30}%</strong></div>
-            <div class="stat-chip"><span>Low-effort days</span><strong>${stats.lowEffortDays}</strong></div>
-        </div>
+        <div id="habitDetails-${habit.id}" class="habit-details" hidden>
+            <div class="habit-stats">
+                <div class="stat-chip"><span>Current streak</span><strong>${stats.currentStreak}d</strong></div>
+                <div class="stat-chip"><span>Best streak</span><strong>${stats.longestStreak}d</strong></div>
+                <div class="stat-chip"><span>Last 7 days</span><strong>${stats.completionRate7}%</strong></div>
+                <div class="stat-chip"><span>Last 30 days</span><strong>${stats.completionRate30}%</strong></div>
+                <div class="stat-chip"><span>Low-effort days</span><strong>${stats.lowEffortDays}</strong></div>
+            </div>
 
-        <div class="habit-calendar">${stats.calendarHtml}</div>
+            <div class="habit-calendar">${stats.calendarHtml}</div>
+        </div>
     `;
 
+    div.querySelector("[data-habit-details-toggle]")?.addEventListener("click", (event) => {
+        const button = event.currentTarget;
+        const details = div.querySelector(`#habitDetails-${habit.id}`);
+        const isExpanded = button.getAttribute("aria-expanded") === "true";
+
+        button.setAttribute("aria-expanded", String(!isExpanded));
+        button.textContent = isExpanded ? "Details" : "Hide details";
+        button.classList.toggle("habit-meta-pill--details-active", !isExpanded);
+
+        if (details) {
+            details.hidden = isExpanded;
+        }
+    });
+
     return div;
+}
+
+function syncHabitSelectionControls() {
+    const selectedCount = selectedHabitIds.size;
+    const completeSelectedButton = document.getElementById("completeSelectedHabits");
+    const clearSelectionButton = document.getElementById("clearHabitSelection");
+
+    if (completeSelectedButton) {
+        completeSelectedButton.textContent = selectedCount > 0
+            ? `Complete selected (${selectedCount})`
+            : "Complete selected";
+        completeSelectedButton.disabled = selectedCount === 0;
+    }
+
+    if (clearSelectionButton) {
+        clearSelectionButton.disabled = selectedCount === 0;
+    }
+}
+
+function pruneHabitSelection() {
+    const existingIds = new Set(habitDirectory.map((habit) => Number(habit.id)));
+    selectedHabitIds.forEach((id) => {
+        if (!existingIds.has(Number(id))) {
+            selectedHabitIds.delete(id);
+        }
+    });
+}
+
+function updateHabitSelection(habitId, isSelected) {
+    const normalizedId = Number(habitId);
+
+    if (!Number.isInteger(normalizedId)) {
+        return;
+    }
+
+    if (isSelected) {
+        selectedHabitIds.add(normalizedId);
+    } else {
+        selectedHabitIds.delete(normalizedId);
+    }
+
+    syncHabitSelectionControls();
+}
+
+function clearHabitSelection() {
+    selectedHabitIds.clear();
+    document.querySelectorAll("[data-habit-select]").forEach((checkbox) => {
+        checkbox.checked = false;
+    });
+    syncHabitSelectionControls();
+}
+
+function toggleHabitListVisibility() {
+    isHabitListCollapsed = !isHabitListCollapsed;
+    renderHabitList();
+}
+
+function toggleCollapsibleSection(buttonId, targetId, expandedLabel, collapsedLabel) {
+    const button = document.getElementById(buttonId);
+    const target = document.getElementById(targetId);
+
+    if (!button || !target) {
+        return;
+    }
+
+    const isExpanded = button.getAttribute("aria-expanded") !== "false";
+    const nextExpanded = !isExpanded;
+    target.classList.toggle("hidden", !nextExpanded);
+    button.setAttribute("aria-expanded", String(nextExpanded));
+    button.textContent = nextExpanded ? expandedLabel : collapsedLabel;
 }
 
 function renderSelectOptions(selectElement, values, defaultLabel) {
@@ -1328,7 +1628,7 @@ function renderSelectOptions(selectElement, values, defaultLabel) {
     selectElement.value = values.includes(currentValue) ? currentValue : "";
 }
 
-function createSuggestionCard(suggestion) {
+function createSuggestionCard(suggestion, source = "personalized") {
     const article = document.createElement("article");
     article.className = "suggestion-card";
 
@@ -1356,7 +1656,7 @@ function createSuggestionCard(suggestion) {
     addButton.className = "btn btn-primary";
     addButton.textContent = "Add as habit";
     addButton.addEventListener("click", () => {
-        addSuggestedHabit(suggestion);
+        addSuggestedHabit(suggestion, { source });
     });
 
     actions.appendChild(addButton);
@@ -1369,7 +1669,7 @@ function createSuggestionCard(suggestion) {
     return article;
 }
 
-function renderSuggestionList(containerId, suggestions, emptyMessage) {
+function renderSuggestionList(containerId, suggestions, emptyMessage, source = "personalized") {
     const container = document.getElementById(containerId);
 
     if (!container) {
@@ -1384,7 +1684,7 @@ function renderSuggestionList(containerId, suggestions, emptyMessage) {
     }
 
     suggestions.forEach((suggestion) => {
-        container.appendChild(createSuggestionCard(suggestion));
+        container.appendChild(createSuggestionCard(suggestion, source));
     });
 }
 
@@ -1395,12 +1695,14 @@ function renderSuggestionsPanel() {
     renderSuggestionList(
         "personalizedSuggestions",
         personalizedSuggestions,
-        "Keep checking in and we will start shaping ideas around your real routine."
+        "Keep checking in and we will start shaping ideas around your real routine.",
+        "personalized"
     );
     renderSuggestionList(
         "funSuggestions",
         funSuggestions,
-        "You have already added the current fun ideas. Shuffle again after you try a few."
+        "You have already added the current fun ideas. Shuffle again after you try a few.",
+        "fun"
     );
 }
 
@@ -1586,6 +1888,8 @@ function renderProgressPanel() {
 
 function renderHabitList() {
     const list = document.getElementById("habitList");
+    const noHabitsEmptyState = document.getElementById("noHabitsEmptyState");
+    const toggleButton = document.getElementById("toggleHabitListVisibility");
     if (!list) {
         return;
     }
@@ -1595,11 +1899,24 @@ function renderHabitList() {
         habitViewState.sort
     );
 
+    pruneHabitSelection();
     updateHabitFilterSummary(visibleHabits.length, habitDirectory.length);
     list.innerHTML = "";
+    noHabitsEmptyState?.classList.toggle("hidden", habitDirectory.length !== 0);
+    syncHabitSelectionControls();
+    list.classList.toggle("hidden", isHabitListCollapsed);
+
+    if (toggleButton) {
+        toggleButton.disabled = habitDirectory.length === 0;
+        toggleButton.textContent = isHabitListCollapsed ? "Expand list" : "Collapse list";
+        toggleButton.setAttribute("aria-expanded", String(!isHabitListCollapsed));
+    }
 
     if (habitDirectory.length === 0) {
-        list.innerHTML = '<div class="empty-state">No habits yet. Add one to get started.</div>';
+        return;
+    }
+
+    if (isHabitListCollapsed) {
         return;
     }
 
@@ -1615,6 +1932,11 @@ function renderHabitList() {
 
     const habitsToRender = getVisibleHabitSlice(visibleHabits, isHabitListExpanded, HABIT_COLLAPSE_LIMIT);
     habitsToRender.forEach((habit) => list.appendChild(renderHabitCard(habit)));
+    list.querySelectorAll("[data-habit-select]").forEach((checkbox) => {
+        checkbox.addEventListener("change", (event) => {
+            updateHabitSelection(event.target.dataset.habitId, event.target.checked);
+        });
+    });
 
     if (shouldCollapse) {
         const remainingCount = visibleHabits.length - habitsToRender.length;
@@ -1697,6 +2019,9 @@ function bindHabitControls() {
     const sortSelect = document.getElementById("habitSort");
     const clearButton = document.getElementById("clearHabitFilters");
     const completeAllButton = document.getElementById("completeAllHabits");
+    const completeSelectedButton = document.getElementById("completeSelectedHabits");
+    const clearSelectionButton = document.getElementById("clearHabitSelection");
+    const toggleHabitListButton = document.getElementById("toggleHabitListVisibility");
 
     searchInput?.addEventListener("input", (event) => {
         habitViewState.search = event.target.value;
@@ -1728,6 +2053,9 @@ function bindHabitControls() {
 
     clearButton?.addEventListener("click", resetHabitFilters);
     completeAllButton?.addEventListener("click", completeAllHabits);
+    completeSelectedButton?.addEventListener("click", completeSelectedHabits);
+    clearSelectionButton?.addEventListener("click", clearHabitSelection);
+    toggleHabitListButton?.addEventListener("click", toggleHabitListVisibility);
 }
 
 function bindChartControls() {
@@ -1763,10 +2091,27 @@ function bindChartControls() {
 
 function bindSuggestionControls() {
     const shuffleButton = document.getElementById("shuffleFunSuggestions");
+    const recommendationsToggle = document.getElementById("toggleRecommendationsPanel");
+    const personalizedToggle = document.getElementById("togglePersonalizedSuggestions");
+    const funToggle = document.getElementById("toggleFunSuggestions");
 
     shuffleButton?.addEventListener("click", () => {
         suggestionViewState.funOffset += 1;
         renderSuggestionsPanel();
+    });
+    recommendationsToggle?.addEventListener("click", () => {
+        toggleCollapsibleSection(
+            "toggleRecommendationsPanel",
+            "recommendationsContent",
+            "Collapse recommendations",
+            "Expand recommendations"
+        );
+    });
+    personalizedToggle?.addEventListener("click", () => {
+        toggleCollapsibleSection("togglePersonalizedSuggestions", "personalizedSuggestions", "Collapse", "Expand");
+    });
+    funToggle?.addEventListener("click", () => {
+        toggleCollapsibleSection("toggleFunSuggestions", "funSuggestions", "Collapse", "Expand");
     });
 }
 
@@ -1839,10 +2184,12 @@ async function addHabit() {
     loadHabits();
 }
 
-async function addSuggestedHabit(suggestion) {
+async function addSuggestedHabit(suggestion, options = {}) {
     const name = String(suggestion?.name ?? "").trim();
     const description = String(suggestion?.description ?? "").trim();
     const category = normalizeHabitCategory(suggestion?.category);
+    const tags = normalizeHabitTags(suggestion?.tags);
+    const source = String(options?.source || "").trim().toLowerCase();
 
     if (!name) {
         showFeedback("Suggestion is missing a habit name.");
@@ -1851,7 +2198,7 @@ async function addSuggestedHabit(suggestion) {
 
     const res = await authFetch("/habits", {
         method: "POST",
-        body: JSON.stringify({ name, description, category, tags: [] })
+        body: JSON.stringify({ name, description, category, tags })
     });
 
     const data = await readJson(res);
@@ -1861,6 +2208,20 @@ async function addSuggestedHabit(suggestion) {
         return;
     }
 
+    habitDirectory = [
+        ...habitDirectory,
+        createLocalHabitEntry({
+            id: data?.id,
+            name,
+            description,
+            category,
+            tags
+        })
+    ];
+    if (source === "fun") {
+        suggestionViewState.funOffset += 1;
+    }
+    renderSuggestionsPanel();
     showFeedback(`Added "${name}" to your habits.`, true);
     loadHabits();
 }
@@ -1935,6 +2296,31 @@ async function completeAllHabits() {
     }
 
     showFeedback(data.message || "All habits completed.", true);
+    loadHabits();
+}
+
+async function completeSelectedHabits() {
+    const habitIds = Array.from(selectedHabitIds);
+
+    if (habitIds.length === 0) {
+        showFeedback("Select at least one habit to complete.");
+        return;
+    }
+
+    const today = formatLocalDate(new Date());
+    const res = await authFetch("/habits/logs/bulk", {
+        method: "POST",
+        body: JSON.stringify({ completion_date: today, habitIds })
+    });
+    const data = await readJson(res);
+
+    if (!res.ok) {
+        showFeedback(data.error || "Unable to complete selected habits.");
+        return;
+    }
+
+    clearHabitSelection();
+    showFeedback(data.message || "Selected habits completed.", true);
     loadHabits();
 }
 
@@ -2053,6 +2439,20 @@ function showWelcomeModalIfNeeded() {
     }
 
     sessionStorage.removeItem("habittrack_welcome_new_user");
+    openWelcomeModal();
+}
+
+function maybeShowFirstHabitWelcome() {
+    if (!currentUser || habitDirectory.length !== 0) {
+        return;
+    }
+
+    const welcomeKey = `habittrack_seen_empty_state_welcome_${currentUser.id}`;
+    if (localStorage.getItem(welcomeKey) === "true") {
+        return;
+    }
+
+    localStorage.setItem(welcomeKey, "true");
     openWelcomeModal();
 }
 
@@ -2214,6 +2614,8 @@ async function initializeApp() {
 
     await Promise.all([loadHabits(), loadAdminPanel()]);
     showWelcomeModalIfNeeded();
+    maybeShowFirstHabitWelcome();
 }
 
 initializeApp();
+

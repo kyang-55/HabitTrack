@@ -58,6 +58,9 @@ async function initializeDatabase() {
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            username TEXT,
             email TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             firebase_uid TEXT,
@@ -89,7 +92,8 @@ async function initializeDatabase() {
             category TEXT,
             icon TEXT,
             tags TEXT,
-            is_favorite INTEGER NOT NULL DEFAULT 0
+            is_favorite INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
 
@@ -130,6 +134,9 @@ async function initializeDatabase() {
     `);
 
     await ensureColumn("users", "role", "TEXT NOT NULL DEFAULT 'user'");
+    await ensureColumn("users", "first_name", "TEXT");
+    await ensureColumn("users", "last_name", "TEXT");
+    await ensureColumn("users", "username", "TEXT");
     await ensureColumn("users", "firebase_uid", "TEXT");
     await ensureColumn("users", "habit_log_retention", "TEXT NOT NULL DEFAULT '30_days'");
     await ensureColumn("users", "dashboard_preferences", "TEXT NOT NULL DEFAULT '{}'");
@@ -140,6 +147,7 @@ async function initializeDatabase() {
     await ensureColumn("habits", "icon", "TEXT");
     await ensureColumn("habits", "tags", "TEXT");
     await ensureColumn("habits", "is_favorite", "INTEGER NOT NULL DEFAULT 0");
+    await ensureColumn("habits", "created_at", "DATETIME");
     await ensureColumn("habit_logs", "entry_type", "TEXT NOT NULL DEFAULT 'full'");
 
     await runAsync(
@@ -159,11 +167,46 @@ async function initializeDatabase() {
         "UPDATE users SET theme_preference = 'light' WHERE theme_preference IS NULL OR TRIM(theme_preference) = ''"
     );
     await runAsync(
+        `UPDATE users
+         SET first_name = CASE
+                WHEN INSTR(TRIM(name), ' ') > 0 THEN SUBSTR(TRIM(name), 1, INSTR(TRIM(name), ' ') - 1)
+                ELSE TRIM(name)
+            END
+         WHERE first_name IS NULL OR TRIM(first_name) = ''`
+    );
+    await runAsync(
+        `UPDATE users
+         SET last_name = CASE
+                WHEN INSTR(TRIM(name), ' ') > 0 THEN TRIM(SUBSTR(TRIM(name), INSTR(TRIM(name), ' ') + 1))
+                ELSE ''
+            END
+         WHERE last_name IS NULL`
+    );
+    await runAsync(
+        `UPDATE users
+         SET username = LOWER(REPLACE(TRIM(name), ' ', ''))
+         WHERE username IS NULL OR TRIM(username) = ''`
+    );
+    await runAsync(
         "UPDATE habit_logs SET entry_type = 'full' WHERE entry_type IS NULL OR TRIM(entry_type) = ''"
+    );
+    await runAsync(
+        `UPDATE habits
+         SET created_at = COALESCE(
+                (
+                    SELECT MIN(created_at)
+                    FROM habit_logs
+                    WHERE habit_logs.habit_id = habits.id
+                ),
+                CURRENT_TIMESTAMP
+            )
+         WHERE created_at IS NULL OR TRIM(created_at) = ''`
     );
 
     await runAsync("CREATE INDEX IF NOT EXISTS idx_habits_user_id ON habits(user_id)");
+    await runAsync("CREATE INDEX IF NOT EXISTS idx_habits_created_at ON habits(created_at)");
     await runAsync("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid)");
+    await runAsync("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)");
     await runAsync("CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)");
     await runAsync("CREATE INDEX IF NOT EXISTS idx_reset_tokens_user_id ON password_reset_tokens(user_id)");
     await runAsync("CREATE INDEX IF NOT EXISTS idx_login_codes_user_id ON login_verification_codes(user_id)");

@@ -95,17 +95,19 @@ function getFirebaseErrorMessage(code) {
     }
 }
 
-async function registerWithFirebase({ name, email, password }) {
+async function registerWithFirebase({ firstName = "", lastName = "", email, password }) {
     const signUp = await callFirebaseAuth("accounts:signUp", {
         email,
         password,
         returnSecureToken: true
     });
 
-    if (name) {
+    const displayName = [String(firstName).trim(), String(lastName).trim()].filter(Boolean).join(" ");
+
+    if (displayName) {
         await callFirebaseAuth("accounts:update", {
             idToken: signUp.idToken,
-            displayName: name,
+            displayName,
             returnSecureToken: false
         });
     }
@@ -146,12 +148,18 @@ async function sendVerificationEmailWithFirebase(idToken) {
     });
 }
 
-async function createServerSessionFromFirebase(idToken, rememberMe) {
+async function createServerSessionFromFirebase(idToken, rememberMe, profile = {}) {
     const res = await fetch(`${API}/auth/firebase-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ idToken, rememberMe })
+        body: JSON.stringify({
+            idToken,
+            rememberMe,
+            firstName: String(profile.firstName || "").trim(),
+            lastName: String(profile.lastName || "").trim(),
+            email: String(profile.email || "").trim()
+        })
     });
 
     const data = await readJson(res);

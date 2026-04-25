@@ -74,6 +74,19 @@ function getInitials(name) {
     return parts.map((part) => part[0].toUpperCase()).join("");
 }
 
+function splitProfileName(name) {
+    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    return {
+        firstName: parts[0] || "",
+        lastName: parts.slice(1).join(" ")
+    };
+}
+
+function getProfileDisplayName(firstName, lastName, fallbackName = "") {
+    return [firstName, lastName].map((part) => String(part || "").trim()).filter(Boolean).join(" ")
+        || String(fallbackName || "").trim();
+}
+
 function formatJoinedDate(isoString) {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const date = new Date(isoString);
@@ -372,12 +385,19 @@ function renderProfile(profile) {
     pendingAvatarDataUrl = "";
     isRemovingAvatar = false;
 
-    document.getElementById("profileHeroName").textContent = user.name || "Your HabitTrack profile";
+    const shouldUseNameFallback = Boolean(user.name);
+    const fallbackName = shouldUseNameFallback ? splitProfileName(user.name) : { firstName: "", lastName: "" };
+    const firstName = user.firstName || fallbackName.firstName;
+    const lastName = user.lastName || fallbackName.lastName;
+    const displayName = getProfileDisplayName(firstName, lastName, shouldUseNameFallback ? user.name : "");
+
+    document.getElementById("profileHeroName").textContent = displayName || "Your HabitTrack profile";
     document.getElementById("profileHeroEmail").textContent = user.email || "No email available";
     document.getElementById("profileRoleBadge").textContent = user.role || "member";
     document.getElementById("profileJoined").textContent = formatJoinedDate(user.createdAt);
 
-    document.getElementById("name").value = user.name || "";
+    document.getElementById("firstName").value = firstName;
+    document.getElementById("lastName").value = lastName;
     document.getElementById("email").value = user.email || "";
 
     document.getElementById("totalHabits").textContent = String(stats.totalHabits || 0);
@@ -388,11 +408,74 @@ function renderProfile(profile) {
     document.getElementById("deleteConfirmation").value = "";
     applyThemePreference(user.themePreference);
 
-    renderAvatarElements(user.name || "", getAvatarPreviewPath());
+    renderAvatarElements(displayName || user.name || "", getAvatarPreviewPath());
     renderRecentHabits(profile?.recentHabits);
     syncAvatarActionButtons();
     setAvatarHint(DEFAULT_AVATAR_HINT);
     setDeleteState(false);
+}
+
+function getLiveProfileName() {
+    return getProfileDisplayName(
+        document.getElementById("firstName")?.value.trim(),
+        document.getElementById("lastName")?.value.trim()
+    );
+}
+
+function renderRecentHabits(recentHabits) {
+    const container = document.getElementById("recentHabitsList");
+    const habits = Array.isArray(recentHabits) ? recentHabits : [];
+    const favoriteCount = habits.filter((habit) => habit.isFavorite).length;
+    const totalCheckIns = habits.reduce((sum, habit) => sum + Number(habit.totalCheckIns || 0), 0);
+    const focusSummary = `
+        <section class="focus-summary" aria-label="Habit focus summary">
+            <article class="focus-summary__card">
+                <span>Tracked here</span>
+                <strong>${habits.length}</strong>
+            </article>
+            <article class="focus-summary__card">
+                <span>Favorites</span>
+                <strong>${favoriteCount}</strong>
+            </article>
+            <article class="focus-summary__card">
+                <span>Total check-ins</span>
+                <strong>${totalCheckIns}</strong>
+            </article>
+        </section>
+    `;
+
+    if (habits.length === 0) {
+        container.innerHTML = `
+            ${focusSummary}
+            <div class="empty-state empty-state--focus">
+                <strong>Your focus list is ready.</strong>
+                <p>Once you create a habit from the dashboard, its most recent activity will land here automatically.</p>
+                <div class="focus-empty-tags" aria-hidden="true">
+                    <span class="focus-empty-tag">Morning routine</span>
+                    <span class="focus-empty-tag">Hydration</span>
+                    <span class="focus-empty-tag">Reading</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        ${focusSummary}
+        ${habits.map((habit) => `
+            <article class="habit-row">
+                <div>
+                    <div class="habit-row__title-line">
+                        ${renderHabitIcon(habit.icon)}
+                        <p class="habit-row__title">${escapeHtml(habit.name)}</p>
+                        ${habit.isFavorite ? '<span class="habit-row__favorite">&#9733; Favorite</span>' : ""}
+                    </div>
+                    <p class="habit-row__meta">${escapeHtml(formatLastCheckIn(habit.lastCheckIn))}</p>
+                </div>
+                <p class="habit-row__count">${habit.totalCheckIns} ${habit.totalCheckIns === 1 ? "check-in" : "check-ins"}</p>
+            </article>
+        `).join("")}
+    `;
 }
 
 function readFileAsDataUrl(file) {
@@ -643,7 +726,11 @@ async function applyAvatarCrop() {
     pendingAvatarDataUrl = getCroppedAvatarDataUrl(cropState.image, cropState, AVATAR_OUTPUT_SIZE);
     isRemovingAvatar = false;
     closeCropModal();
-    renderAvatarElements(document.getElementById("name").value.trim(), getAvatarPreviewPath());
+    const displayName = getProfileDisplayName(
+        document.getElementById("firstName").value,
+        document.getElementById("lastName").value
+    );
+    renderAvatarElements(displayName, getAvatarPreviewPath());
     syncAvatarActionButtons();
     setAvatarHint("Square crop ready. Save changes to update your profile picture.");
 }
@@ -658,7 +745,7 @@ document.getElementById("chooseAvatarButton").addEventListener("click", () => {
 document.getElementById("removeAvatarButton").addEventListener("click", () => {
     pendingAvatarDataUrl = "";
     isRemovingAvatar = true;
-    renderAvatarElements(document.getElementById("name").value.trim(), "");
+    renderAvatarElements(getLiveProfileName(), "");
     syncAvatarActionButtons();
     setAvatarHint("Photo will be removed when you save your changes.");
 });
@@ -680,8 +767,12 @@ document.getElementById("avatarInput").addEventListener("change", async (event) 
     }
 });
 
-document.getElementById("name").addEventListener("input", () => {
-    renderAvatarElements(document.getElementById("name").value.trim(), getAvatarPreviewPath());
+document.getElementById("firstName").addEventListener("input", () => {
+    renderAvatarElements(getLiveProfileName(), getAvatarPreviewPath());
+});
+
+document.getElementById("lastName").addEventListener("input", () => {
+    renderAvatarElements(getLiveProfileName(), getAvatarPreviewPath());
 });
 
 document.getElementById("deleteConfirmation").addEventListener("input", () => {
@@ -751,9 +842,11 @@ document.getElementById("profileForm").addEventListener("submit", async (event) 
     showFeedback("");
     setSavingState(true);
 
-    const name = document.getElementById("name").value.trim();
+    const firstName = document.getElementById("firstName").value.trim();
+    const lastName = document.getElementById("lastName").value.trim();
+    const name = getProfileDisplayName(firstName, lastName);
     const email = document.getElementById("email").value.trim();
-    const payload = { name, email };
+    const payload = { firstName, lastName, name, email };
 
     if (pendingAvatarDataUrl) {
         payload.avatarDataUrl = pendingAvatarDataUrl;
